@@ -16,6 +16,19 @@ interface AuthState {
   logout: () => void
 }
 
+// Safe localStorage access for SSR
+const getStorage = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage
+  }
+  // Return a no-op storage for SSR
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -28,7 +41,8 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getStorage() as any),
+      skipHydration: true, // Skip hydration on server
     },
   ),
 )

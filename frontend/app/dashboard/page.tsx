@@ -22,6 +22,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     if (!isAuthenticated) {
       router.push('/login')
       return
@@ -41,8 +44,13 @@ export default function DashboardPage() {
     }
   }
 
-  if (!isAuthenticated) {
-    return null
+  // Don't render on server if not authenticated
+  if (typeof window === 'undefined' || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
   }
 
   return (

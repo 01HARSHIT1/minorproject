@@ -1,36 +1,58 @@
 import axios from 'axios'
-import { useAuthStore } from '@/store/authStore'
+
+const getAuthToken = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    const authStorage = localStorage.getItem('auth-storage')
+    if (!authStorage) return null
+    const parsed = JSON.parse(authStorage)
+    return parsed?.state?.token || null
+  } catch {
+    return null
+  }
+}
+
+// Get API URL from environment or default to localhost
+const getApiUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Client-side: use environment variable or default
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  }
+  // Server-side: always use environment variable
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+}
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 second timeout
 })
 
-// Add auth token to requests (only on client side)
-if (typeof window !== 'undefined') {
-  api.interceptors.request.use((config) => {
-    try {
-      const token = useAuthStore.getState().token
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
-    } catch (error) {
-      // Ignore errors in SSR
+// Add auth token to requests (works on both client and server)
+api.interceptors.request.use((config) => {
+  try {
+    const token = getAuthToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
     }
-    return config
-  })
+  } catch (error) {
+    // Ignore errors
+  }
+  return config
+})
 
-  // Handle auth errors (only on client side)
+// Handle auth errors (only on client side)
+if (typeof window !== 'undefined') {
   api.interceptors.response.use(
     (response) => response,
     (error) => {
       if (error.response?.status === 401) {
         try {
-          useAuthStore.getState().logout()
-          if (window.location) {
+          // Clear auth storage
+          localStorage.removeItem('auth-storage')
+          if (window.location && window.location.pathname !== '/login') {
             window.location.href = '/login'
           }
         } catch (e) {

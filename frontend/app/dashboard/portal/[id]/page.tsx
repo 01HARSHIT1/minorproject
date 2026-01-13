@@ -53,6 +53,9 @@ export default function PortalDetailPage() {
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     fetchState()
     fetchInsights()
   }, [params.id])
