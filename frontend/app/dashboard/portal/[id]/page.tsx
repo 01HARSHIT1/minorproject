@@ -218,6 +218,55 @@ export default function PortalDetailPage() {
           )}
         </div>
 
+        {/* Quick Actions */}
+        <div className="mt-8 bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <button
+              onClick={() => handleAction('apply_exam', {})}
+              className="bg-primary-600 text-white px-4 py-3 rounded-md hover:bg-primary-700 transition"
+            >
+              Apply for Exam
+            </button>
+            <button
+              onClick={() => handleAction('download_admit_card', {})}
+              className="bg-blue-600 text-white px-4 py-3 rounded-md hover:bg-blue-700 transition"
+            >
+              Download Admit Card
+            </button>
+            <button
+              onClick={() => handleAction('download_result', {})}
+              className="bg-green-600 text-white px-4 py-3 rounded-md hover:bg-green-700 transition"
+            >
+              Download Results
+            </button>
+            <button
+              onClick={() => handleAction('pay_fees', {})}
+              className="bg-purple-600 text-white px-4 py-3 rounded-md hover:bg-purple-700 transition"
+            >
+              Pay Fees
+            </button>
+            <button
+              onClick={() => handleAction('download_fee_receipt', {})}
+              className="bg-indigo-600 text-white px-4 py-3 rounded-md hover:bg-indigo-700 transition"
+            >
+              Download Fee Receipt
+            </button>
+            <button
+              onClick={() => {
+                const reason = prompt('Enter leave reason:');
+                const date = prompt('Enter leave date (YYYY-MM-DD):');
+                if (reason && date) {
+                  handleAction('apply_leave', { reason, date });
+                }
+              }}
+              className="bg-orange-600 text-white px-4 py-3 rounded-md hover:bg-orange-700 transition"
+            >
+              Apply for Leave
+            </button>
+          </div>
+        </div>
+
         {!state && (
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <p className="text-gray-500">No data available. Sync to fetch data.</p>

@@ -3,6 +3,7 @@ import { chromium, Browser, Page } from 'playwright';
 import { VaultService } from '../vault/vault.service';
 import { BaseConnector } from './connectors/base-connector';
 import { AmityConnector } from './connectors/amity.connector';
+import { UpesConnector } from './connectors/upes.connector';
 import { PortalType } from '../portals/entities/portal-connection.entity';
 
 @Injectable()
@@ -36,6 +37,8 @@ export class AutomationService {
     switch (portalType) {
       case PortalType.AMITY:
         return new AmityConnector(browser, page);
+      case PortalType.UPES:
+        return new UpesConnector(browser, page);
       // Add more connectors here
       default:
         throw new Error(`Unsupported portal type: ${portalType}`);

@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 
 const PORTAL_TYPES = [
-  { value: 'amity', label: 'Amity University' },
-  { value: 'du', label: 'Delhi University' },
-  { value: 'vit', label: 'VIT University' },
-  { value: 'iit', label: 'IIT' },
-  { value: 'custom', label: 'Custom Portal' },
+  { value: 'upes', label: 'UPES (University of Petroleum and Energy Studies)', url: 'https://myupes-beta.upes.ac.in/' },
+  { value: 'amity', label: 'Amity University', url: '' },
+  { value: 'du', label: 'Delhi University', url: '' },
+  { value: 'vit', label: 'VIT University', url: '' },
+  { value: 'iit', label: 'IIT', url: '' },
+  { value: 'custom', label: 'Custom Portal', url: '' },
 ]
 
 export default function ConnectPortalPage() {
@@ -17,8 +18,8 @@ export default function ConnectPortalPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
-    portalType: 'amity',
-    portalUrl: '',
+    portalType: 'upes',
+    portalUrl: 'https://myupes-beta.upes.ac.in/',
     collegeId: '',
     password: '',
   })
@@ -52,9 +53,14 @@ export default function ConnectPortalPage() {
               <select
                 required
                 value={formData.portalType}
-                onChange={(e) =>
-                  setFormData({ ...formData, portalType: e.target.value })
-                }
+                onChange={(e) => {
+                  const selectedType = PORTAL_TYPES.find(t => t.value === e.target.value);
+                  setFormData({ 
+                    ...formData, 
+                    portalType: e.target.value,
+                    portalUrl: selectedType?.url || formData.portalUrl
+                  });
+                }}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {PORTAL_TYPES.map((type) => (

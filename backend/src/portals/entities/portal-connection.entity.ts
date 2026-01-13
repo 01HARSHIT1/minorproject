@@ -13,6 +13,7 @@ import { PortalState } from './portal-state.entity';
 
 export enum PortalType {
   AMITY = 'amity',
+  UPES = 'upes',
   DU = 'du',
   VIT = 'vit',
   IIT = 'iit',
