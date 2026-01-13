@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 export default function StoreHydration() {
   useEffect(() => {
     // Hydrate the store on client side only
-    useAuthStore.persist.rehydrate()
+    useAuthStore.getState().hydrate()
   }, [])
 
   return null

@@ -6,7 +6,7 @@ const getAuthToken = () => {
     const authStorage = localStorage.getItem('auth-storage')
     if (!authStorage) return null
     const parsed = JSON.parse(authStorage)
-    return parsed?.state?.token || null
+    return parsed?.token || null
   } catch {
     return null
   }
