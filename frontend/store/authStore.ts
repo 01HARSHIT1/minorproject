@@ -59,8 +59,3 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 )
-
-// Hydrate on client side only
-if (typeof window !== 'undefined') {
-  useAuthStore.persist.rehydrate()
-}
