@@ -4,13 +4,21 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
 
-  // CRITICAL: Exclude ALL static files from middleware
-  // This prevents crashes when browser requests static assets like favicon.ico
+  // Handle favicon.ico requests immediately - return 204 No Content
+  // This prevents any processing and crashes
+  if (path === '/favicon.ico') {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        'Content-Type': 'image/x-icon',
+      },
+    })
+  }
+
+  // Exclude all other static files from middleware
   if (
-    path === '/favicon.ico' ||
     path.startsWith('/_next') ||
     path.startsWith('/_vercel') ||
-    path.startsWith('/api/favicon') ||
     path.includes('.ico') ||
     path.includes('.png') ||
     path.includes('.jpg') ||
@@ -26,7 +34,6 @@ export function middleware(request: NextRequest) {
     path.includes('.woff2') ||
     path.includes('.ttf')
   ) {
-    // Let Next.js serve static files directly - don't process them
     return NextResponse.next()
   }
 
@@ -35,16 +42,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // IMPORTANT: Exclude static files completely from middleware
-  // This matcher prevents middleware from running on static assets
+  // Run middleware for all routes - but favicon is handled early above
   matcher: [
-    /*
-     * Match all request paths EXCEPT:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - All file extensions (static assets)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|json|xml|woff|woff2|ttf)).*)',
+    '/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|json|xml|woff|woff2|ttf)).*)',
   ],
 }
