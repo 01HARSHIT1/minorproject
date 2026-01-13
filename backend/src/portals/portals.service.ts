@@ -216,6 +216,41 @@ export class PortalsService {
     return state;
   }
 
+  async getPortalInsights(
+    connectionId: string,
+    userId: string,
+  ): Promise<{
+    summary: string;
+    alerts: string[];
+    recommendations: string[];
+    riskLevel: 'low' | 'medium' | 'high';
+  }> {
+    const state = await this.getLatestState(connectionId, userId);
+
+    // Analyze portal data with AI
+    const analysis = await this.aiService.analyzePortalData({
+      attendance: state.attendance,
+      exams: state.exams,
+      results: state.results,
+      fees: state.fees,
+      notices: state.notices,
+    });
+
+    // Get additional recommendations
+    const recommendations = await this.aiService.generateRecommendations({
+      attendance: state.attendance,
+      exams: state.exams,
+      results: state.results,
+      fees: state.fees,
+      notices: state.notices,
+    });
+
+    return {
+      ...analysis,
+      recommendations: [...analysis.recommendations, ...recommendations],
+    };
+  }
+
   private calculateNoticesHash(notices: Array<any>): string {
     const noticesString = JSON.stringify(notices);
     return crypto.createHash('sha256').update(noticesString).digest('hex');

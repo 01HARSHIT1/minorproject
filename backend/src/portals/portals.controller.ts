@@ -57,6 +57,11 @@ export class PortalsController {
     return this.portalsService.getLatestState(id, req.user.userId);
   }
 
+  @Get(':id/insights')
+  async getInsights(@Param('id') id: string, @Request() req) {
+    return this.portalsService.getPortalInsights(id, req.user.userId);
+  }
+
   @Post(':id/action')
   async performAction(
     @Param('id') id: string,

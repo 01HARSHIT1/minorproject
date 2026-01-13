@@ -36,15 +36,24 @@ interface PortalState {
   }>
 }
 
+interface PortalInsights {
+  summary: string
+  alerts: string[]
+  recommendations: string[]
+  riskLevel: 'low' | 'medium' | 'high'
+}
+
 export default function PortalDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [state, setState] = useState<PortalState | null>(null)
+  const [insights, setInsights] = useState<PortalInsights | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     fetchState()
+    fetchInsights()
   }, [params.id])
 
   const fetchState = async () => {
@@ -55,6 +64,15 @@ export default function PortalDetailPage() {
       console.error('Failed to fetch state:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchInsights = async () => {
+    try {
+      const { data } = await api.get(`/portals/${params.id}/insights`)
+      setInsights(data)
+    } catch (error) {
+      console.error('Failed to fetch insights:', error)
     }
   }
 
@@ -110,6 +128,52 @@ export default function PortalDetailPage() {
             {syncing ? 'Syncing...' : 'Sync Now'}
           </button>
         </div>
+
+        {/* AI Insights Section */}
+        {insights && (
+          <div className="mb-8 bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">AI Insights & Recommendations</h2>
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  insights.riskLevel === 'high'
+                    ? 'bg-red-100 text-red-800'
+                    : insights.riskLevel === 'medium'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-green-100 text-green-800'
+                }`}
+              >
+                Risk: {insights.riskLevel.toUpperCase()}
+              </span>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-gray-700">{insights.summary}</p>
+            </div>
+
+            {insights.alerts.length > 0 && (
+              <div className="mb-4">
+                <h3 className="font-semibold text-red-700 mb-2">⚠️ Alerts</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {insights.alerts.map((alert, idx) => (
+                    <li key={idx} className="text-red-600">{alert}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {insights.recommendations.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-blue-700 mb-2">💡 Recommendations</h3>
+                <ul className="list-disc list-inside space-y-1">
+                  {insights.recommendations.map((rec, idx) => (
+                    <li key={idx} className="text-gray-700">{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* Attendance */}
