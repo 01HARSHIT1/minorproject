@@ -2,6 +2,8 @@
 
 A secure automation and AI layer that sits between students and their college portals, enabling monitoring, notifications, and automated portal management.
 
+> **Note**: This is a linking interface for students to connect and manage their college portals.
+
 ## 🎯 What This Does
 
 - **Monitor** your college portal automatically
