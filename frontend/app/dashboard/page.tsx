@@ -17,13 +17,16 @@ interface PortalConnection {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, isAuthenticated, logout } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const logout = useAuthStore((state) => state.logout)
+  const hasHydrated = useAuthStore((state) => state._hasHydrated)
   const [connections, setConnections] = useState<PortalConnection[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return
+    // Only run on client side after hydration
+    if (typeof window === 'undefined' || !hasHydrated) return
     
     if (!isAuthenticated) {
       router.push('/login')
@@ -31,7 +34,7 @@ export default function DashboardPage() {
     }
 
     fetchConnections()
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, router, hasHydrated])
 
   const fetchConnections = async () => {
     try {
@@ -44,8 +47,8 @@ export default function DashboardPage() {
     }
   }
 
-  // Don't render on server if not authenticated
-  if (typeof window === 'undefined' || !isAuthenticated) {
+  // Don't render until hydrated
+  if (!hasHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>

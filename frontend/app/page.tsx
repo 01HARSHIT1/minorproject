@@ -7,21 +7,22 @@ import { useAuthStore } from '@/store/authStore'
 export default function Home() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const { isAuthenticated } = useAuthStore()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const hasHydrated = useAuthStore((state) => state._hasHydrated)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !hasHydrated) return
     
     if (isAuthenticated) {
       router.push('/dashboard')
     } else {
       router.push('/login')
     }
-  }, [isAuthenticated, router, mounted])
+  }, [isAuthenticated, router, mounted, hasHydrated])
 
   return (
     <div className="flex items-center justify-center min-h-screen">
