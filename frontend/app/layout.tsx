@@ -8,7 +8,11 @@ export const metadata: Metadata = {
   title: 'Student Portal Gateway',
   description: 'Universal AI Student Gateway - Monitor and manage your college portals',
   icons: {
-    icon: '/favicon.ico',
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
   },
 }
 
