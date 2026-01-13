@@ -1,7 +1,18 @@
-# Ignore backend - Vercel should only deploy frontend
+# Backend code - should NOT be deployed to Vercel
 backend/
+
+# Development files
 node_modules/
 .env
 .env.local
+.env.*.local
 *.log
 .DS_Store
+
+# Documentation (not needed for deployment)
+*.md
+!README.md
+
+# Docker and other configs
+docker-compose.yml
+LICENSE
