@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Student Portal Gateway',
   description: 'Universal AI Student Gateway - Monitor and manage your college portals',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
