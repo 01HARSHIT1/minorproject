@@ -12,6 +12,8 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true)
+    // Hydrate store on client side
+    useAuthStore.getState().hydrate()
   }, [])
 
   useEffect(() => {

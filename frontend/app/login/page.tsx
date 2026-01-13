@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/lib/api'
@@ -9,6 +9,11 @@ import { GraduationCap, Mail, Lock, User, LogIn, UserPlus } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
+  
+  useEffect(() => {
+    // Hydrate store on client side
+    useAuthStore.getState().hydrate()
+  }, [])
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

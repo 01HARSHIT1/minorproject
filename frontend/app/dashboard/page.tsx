@@ -25,6 +25,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Hydrate store on client side
+    useAuthStore.getState().hydrate()
+  }, [])
+
+  useEffect(() => {
     // Only run on client side after hydration
     if (typeof window === 'undefined' || !hasHydrated) return
     
