@@ -5,13 +5,18 @@
 1. **Connect Repository to Vercel**
    - Go to [vercel.com](https://vercel.com)
    - Import your GitHub repository
-   - Vercel will auto-detect Next.js
+   - **IMPORTANT**: Vercel will try to auto-detect, but you need to configure the root directory
 
-2. **Configure Project Settings**
-   - **Root Directory**: Set to `frontend`
-   - **Framework Preset**: Next.js
-   - **Build Command**: `npm run build` (runs in frontend directory)
-   - **Output Directory**: `.next` (default)
+2. **Configure Project Settings (CRITICAL)**
+   - Go to **Project Settings** → **General**
+   - Find **Root Directory** section
+   - Click **Edit** and select `frontend` folder
+   - Click **Save**
+   - **Framework Preset**: Next.js (should auto-detect)
+   - **Build Command**: `npm run build` (auto-detected)
+   - **Output Directory**: `.next` (auto-detected)
+   
+   **⚠️ You MUST set Root Directory to `frontend` before deploying!**
 
 3. **Environment Variables**
    Add these in Vercel Dashboard → Settings → Environment Variables:
