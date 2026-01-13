@@ -18,7 +18,7 @@ export class PortalsScheduler {
   /**
    * Sync all active connections every 15 minutes
    */
-  @Cron(CronExpression.EVERY_15_MINUTES)
+  @Cron('0 */15 * * * *') // Every 15 minutes
   async syncAllConnections() {
     this.logger.log('Starting scheduled sync of all portal connections...');
 
