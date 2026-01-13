@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
-import * as twilio from 'twilio';
+import twilio from 'twilio';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
