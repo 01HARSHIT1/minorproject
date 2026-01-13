@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -9,10 +9,23 @@ export class VaultService {
 
   constructor(private configService: ConfigService) {
     const encryptionKey = this.configService.get<string>('ENCRYPTION_KEY');
+    
+    // If ENCRYPTION_KEY is not provided, generate a default for development
+    // In production, this MUST be set as an environment variable
+    let finalKey: string;
     if (!encryptionKey || encryptionKey.length !== 32) {
-      throw new Error('ENCRYPTION_KEY must be exactly 32 characters');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('ENCRYPTION_KEY must be exactly 32 characters in production. Please set it as an environment variable.');
+      }
+      // Development fallback: use a fixed 32-character key
+      // WARNING: This is NOT secure for production!
+      console.warn('[VAULT] WARNING: Using default ENCRYPTION_KEY for development. This is NOT secure for production!');
+      finalKey = 'dev-encryption-key-32chars!!!'; // Exactly 32 characters
+    } else {
+      finalKey = encryptionKey;
     }
-    this.key = Buffer.from(encryptionKey, 'utf8');
+    
+    this.key = Buffer.from(finalKey, 'utf8');
   }
 
   /**

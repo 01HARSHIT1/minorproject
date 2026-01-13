@@ -1,4 +1,10 @@
-node_modules
-.next
+# Ignore backend code - Vercel should only deploy frontend
+../backend/
+backend/
+node_modules/
+.env
 .env.local
-.env*.local
+.env.*.local
+*.log
+.next
+.DS_Store
