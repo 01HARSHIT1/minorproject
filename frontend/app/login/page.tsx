@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/lib/api'
+import { GraduationCap, Mail, Lock, User, LogIn, UserPlus } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -44,31 +45,39 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
-      <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-6 text-primary-700">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
+        <div className="flex items-center justify-center mb-6">
+          <div className="bg-gradient-to-br from-primary-600 to-primary-800 p-3 rounded-xl">
+            <GraduationCap className="w-8 h-8 text-white" />
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-center mb-2 text-gray-800">
           Student Portal Gateway
         </h1>
+        <p className="text-center text-gray-500 mb-8">Manage your college portals with AI</p>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-2 mb-8 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setIsLogin(true)}
-            className={`flex-1 py-2 rounded ${
+            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
               isLogin
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
             }`}
           >
+            <LogIn className="w-4 h-4" />
             Login
           </button>
           <button
             onClick={() => setIsLogin(false)}
-            className={`flex-1 py-2 rounded ${
+            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
               !isLogin
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-700'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
             }`}
           >
+            <UserPlus className="w-4 h-4" />
             Register
           </button>
         </div>
@@ -76,65 +85,84 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  required={!isLogin}
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  required={!isLogin}
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      required={!isLogin}
+                      value={formData.firstName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                      placeholder="John"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">
+                    Last Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      required={!isLogin}
+                      value={formData.lastName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, lastName: e.target.value })
+                      }
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                      placeholder="Doe"
+                    />
+                  </div>
+                </div>
               </div>
             </>
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
+            <label className="block text-sm font-semibold mb-2 text-gray-700">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                placeholder="you@example.com"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
+            <label className="block text-sm font-semibold mb-2 text-gray-700">Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                placeholder="••••••••"
+              />
+            </div>
           </div>
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-r-lg flex items-center gap-2">
+              <span className="text-red-500">⚠️</span>
               {error}
             </div>
           )}
@@ -142,9 +170,16 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary-600 text-white py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
           >
-            {loading ? 'Loading...' : isLogin ? 'Login' : 'Register'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Processing...
+              </span>
+            ) : (
+              isLogin ? 'Sign In' : 'Create Account'
+            )}
           </button>
         </form>
       </div>
