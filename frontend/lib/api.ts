@@ -6,27 +6,40 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 })
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
-})
-
-// Handle auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      useAuthStore.getState().logout()
-      window.location.href = '/login'
+// Add auth token to requests (only on client side)
+if (typeof window !== 'undefined') {
+  api.interceptors.request.use((config) => {
+    try {
+      const token = useAuthStore.getState().token
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } catch (error) {
+      // Ignore errors in SSR
     }
-    return Promise.reject(error)
-  },
-)
+    return config
+  })
+
+  // Handle auth errors (only on client side)
+  api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        try {
+          useAuthStore.getState().logout()
+          if (window.location) {
+            window.location.href = '/login'
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      return Promise.reject(error)
+    },
+  )
+}
 
 export default api
