@@ -18,6 +18,7 @@ interface AuthState {
   hydrate: () => void
 }
 
+// Create store - Zustand's create is SSR-safe by default
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
@@ -34,7 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           JSON.stringify({ user, token })
         )
       } catch (error) {
-        console.error('Failed to save auth to localStorage', error)
+        // Silently fail in SSR or if localStorage is unavailable
       }
     }
   },
@@ -46,7 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       try {
         localStorage.removeItem('auth-storage')
       } catch (error) {
-        console.error('Failed to clear auth from localStorage', error)
+        // Silently fail in SSR or if localStorage is unavailable
       }
     }
   },
@@ -75,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     } catch (error) {
-      console.error('Failed to hydrate auth from localStorage', error)
+      // Silently fail if localStorage is unavailable or parsing fails
     }
     
     set({ _hasHydrated: true })

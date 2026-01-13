@@ -31,17 +31,25 @@ const api = axios.create({
 })
 
 // Add auth token to requests (works on both client and server)
-api.interceptors.request.use((config) => {
-  try {
-    const token = getAuthToken()
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+api.interceptors.request.use(
+  (config) => {
+    // Only add token on client side
+    if (typeof window !== 'undefined') {
+      try {
+        const token = getAuthToken()
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
+      } catch (error) {
+        // Ignore errors silently
+      }
     }
-  } catch (error) {
-    // Ignore errors
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
   }
-  return config
-})
+)
 
 // Handle auth errors (only on client side)
 if (typeof window !== 'undefined') {

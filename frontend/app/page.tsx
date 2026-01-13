@@ -7,13 +7,26 @@ import { useAuthStore } from '@/store/authStore'
 export default function Home() {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const hasHydrated = useAuthStore((state) => state._hasHydrated)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [hasHydrated, setHasHydrated] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    // Hydrate store on client side
-    useAuthStore.getState().hydrate()
+    // Hydrate store on client side only
+    if (typeof window !== 'undefined') {
+      useAuthStore.getState().hydrate()
+      // Subscribe to store changes
+      const unsubscribe = useAuthStore.subscribe((state) => {
+        setIsAuthenticated(state.isAuthenticated)
+        setHasHydrated(state._hasHydrated)
+      })
+      // Get initial values
+      const state = useAuthStore.getState()
+      setIsAuthenticated(state.isAuthenticated)
+      setHasHydrated(state._hasHydrated)
+      
+      return unsubscribe
+    }
   }, [])
 
   useEffect(() => {
