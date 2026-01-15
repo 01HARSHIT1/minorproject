@@ -43,7 +43,12 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'An error occurred')
+      // Better error messages
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('CONNECTION_REFUSED')) {
+        setError('Cannot connect to server. Please check if the backend is running and NEXT_PUBLIC_API_URL is configured correctly.')
+      } else {
+        setError(err.response?.data?.message || err.message || 'An error occurred')
+      }
     } finally {
       setLoading(false)
     }

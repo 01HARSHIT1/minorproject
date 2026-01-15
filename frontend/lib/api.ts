@@ -14,12 +14,17 @@ const getAuthToken = () => {
 
 // Get API URL from environment or default to localhost
 const getApiUrl = () => {
-  if (typeof window !== 'undefined') {
-    // Client-side: use environment variable or default
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  
+  // Warn if using localhost in production (client-side only)
+  if (typeof window !== 'undefined' && apiUrl.includes('localhost') && window.location.hostname !== 'localhost') {
+    console.warn(
+      '⚠️ API URL is set to localhost but app is running in production. ' +
+      'Please set NEXT_PUBLIC_API_URL environment variable in Vercel.'
+    )
   }
-  // Server-side: always use environment variable
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+  
+  return apiUrl
 }
 
 const api = axios.create({
