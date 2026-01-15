@@ -9,7 +9,7 @@ export class VaultService {
 
   constructor(private configService: ConfigService) {
     const encryptionKey = this.configService.get<string>('ENCRYPTION_KEY');
-    
+
     // If ENCRYPTION_KEY is not provided, generate a default for development
     // In production, this MUST be set as an environment variable
     let finalKey: string;
@@ -24,7 +24,7 @@ export class VaultService {
     } else {
       finalKey = encryptionKey;
     }
-    
+
     this.key = Buffer.from(finalKey, 'utf8');
   }
 
@@ -90,13 +90,13 @@ export class VaultService {
     password: string,
   ): Promise<void> {
     const encrypted = this.encrypt(password);
-    
+
     // For now, use in-memory store even in production
     // TODO: Implement AWS Secrets Manager or Hashicorp Vault for production
     // This works for single-instance deployments but not for multi-instance
     this.credentialStore.set(token, encrypted);
     console.log(`[VAULT] Stored credentials for token: ${token.substring(0, 8)}...`);
-    
+
     // Future: AWS Secrets Manager implementation
     // if (process.env.AWS_SECRETS_MANAGER_ENABLED === 'true') {
     //   await secretsManager.putSecretValue({
@@ -111,14 +111,14 @@ export class VaultService {
    */
   async retrieveCredentials(token: string): Promise<string> {
     let encrypted: string;
-    
+
     // For now, use in-memory store even in production
     // TODO: Implement AWS Secrets Manager or Hashicorp Vault for production
     encrypted = this.credentialStore.get(token);
     if (!encrypted) {
       throw new Error(`Credentials not found for token: ${token.substring(0, 8)}...`);
     }
-    
+
     // Future: AWS Secrets Manager implementation
     // if (process.env.AWS_SECRETS_MANAGER_ENABLED === 'true') {
     //   const secret = await secretsManager.getSecretValue({
@@ -126,7 +126,7 @@ export class VaultService {
     //   });
     //   encrypted = secret.SecretString;
     // }
-    
+
     return this.decrypt(encrypted);
   }
 }
