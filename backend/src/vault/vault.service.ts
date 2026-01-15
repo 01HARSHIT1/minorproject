@@ -82,6 +82,7 @@ export class VaultService {
   /**
    * Store encrypted credentials
    * In production, use AWS Secrets Manager or Hashicorp Vault
+   * For now, using in-memory store (not recommended for production with multiple instances)
    */
   async storeCredentials(
     token: string,
@@ -90,19 +91,19 @@ export class VaultService {
   ): Promise<void> {
     const encrypted = this.encrypt(password);
     
-    // Development: Store in memory
-    // Production: Store in AWS Secrets Manager with key: `portal-${token}`
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: Implement AWS Secrets Manager
-      // await secretsManager.putSecretValue({
-      //   SecretId: `portal-${token}`,
-      //   SecretString: encrypted,
-      // });
-      throw new Error('Production secrets manager not implemented. Use AWS Secrets Manager.');
-    } else {
-      this.credentialStore.set(token, encrypted);
-      console.log(`[VAULT] Stored credentials for token: ${token.substring(0, 8)}...`);
-    }
+    // For now, use in-memory store even in production
+    // TODO: Implement AWS Secrets Manager or Hashicorp Vault for production
+    // This works for single-instance deployments but not for multi-instance
+    this.credentialStore.set(token, encrypted);
+    console.log(`[VAULT] Stored credentials for token: ${token.substring(0, 8)}...`);
+    
+    // Future: AWS Secrets Manager implementation
+    // if (process.env.AWS_SECRETS_MANAGER_ENABLED === 'true') {
+    //   await secretsManager.putSecretValue({
+    //     SecretId: `portal-${token}`,
+    //     SecretString: encrypted,
+    //   });
+    // }
   }
 
   /**
@@ -111,20 +112,20 @@ export class VaultService {
   async retrieveCredentials(token: string): Promise<string> {
     let encrypted: string;
     
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: Retrieve from AWS Secrets Manager
-      // const secret = await secretsManager.getSecretValue({
-      //   SecretId: `portal-${token}`,
-      // });
-      // encrypted = secret.SecretString;
-      throw new Error('Production secrets manager not implemented. Use AWS Secrets Manager.');
-    } else {
-      // Development: Retrieve from memory
-      encrypted = this.credentialStore.get(token);
-      if (!encrypted) {
-        throw new Error(`Credentials not found for token: ${token.substring(0, 8)}...`);
-      }
+    // For now, use in-memory store even in production
+    // TODO: Implement AWS Secrets Manager or Hashicorp Vault for production
+    encrypted = this.credentialStore.get(token);
+    if (!encrypted) {
+      throw new Error(`Credentials not found for token: ${token.substring(0, 8)}...`);
     }
+    
+    // Future: AWS Secrets Manager implementation
+    // if (process.env.AWS_SECRETS_MANAGER_ENABLED === 'true') {
+    //   const secret = await secretsManager.getSecretValue({
+    //     SecretId: `portal-${token}`,
+    //   });
+    //   encrypted = secret.SecretString;
+    // }
     
     return this.decrypt(encrypted);
   }
