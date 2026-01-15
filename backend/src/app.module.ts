@@ -28,6 +28,9 @@ import { VaultModule } from './vault/vault.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV === 'development',
+      ssl: process.env.DATABASE_HOST?.includes('render.com') || process.env.DATABASE_HOST?.includes('onrender.com')
+        ? { rejectUnauthorized: false }
+        : false,
     }),
     BullModule.forRoot({
       redis: {
