@@ -26,7 +26,7 @@ import { VaultModule } from './vault/vault.module';
       password: process.env.DATABASE_PASSWORD || 'postgres',
       database: process.env.DATABASE_NAME || 'student_gateway',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: process.env.NODE_ENV !== 'production',
+      synchronize: true, // Auto-create tables (set to false in production after initial setup)
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.DATABASE_HOST?.includes('render.com') || process.env.DATABASE_HOST?.includes('onrender.com')
         ? { rejectUnauthorized: false }
