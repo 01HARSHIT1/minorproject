@@ -48,4 +48,4 @@ import { VaultModule } from './vault/vault.module';
     VaultModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

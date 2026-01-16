@@ -15,7 +15,7 @@ const getAuthToken = () => {
 // Get API URL from environment or default to localhost
 const getApiUrl = () => {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-  
+
   // Warn if using localhost in production (client-side only)
   if (typeof window !== 'undefined' && apiUrl.includes('localhost') && window.location.hostname !== 'localhost') {
     console.warn(
@@ -23,7 +23,7 @@ const getApiUrl = () => {
       'Please set NEXT_PUBLIC_API_URL environment variable in Vercel.'
     )
   }
-  
+
   return apiUrl
 }
 

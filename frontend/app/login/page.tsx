@@ -9,7 +9,7 @@ import { GraduationCap, Mail, Lock, User, LogIn, UserPlus } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const setAuth = useAuthStore((state) => state.setAuth)
-  
+
   useEffect(() => {
     // Hydrate store on client side
     useAuthStore.getState().hydrate()
@@ -72,22 +72,20 @@ export default function LoginPage() {
         <div className="flex gap-2 mb-8 bg-gray-100 p-1 rounded-lg">
           <button
             onClick={() => setIsLogin(true)}
-            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-              isLogin
+            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${isLogin
                 ? 'bg-white text-primary-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+              }`}
           >
             <LogIn className="w-4 h-4" />
             Login
           </button>
           <button
             onClick={() => setIsLogin(false)}
-            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-              !isLogin
+            className={`flex-1 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${!isLogin
                 ? 'bg-white text-primary-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+              }`}
           >
             <UserPlus className="w-4 h-4" />
             Register
