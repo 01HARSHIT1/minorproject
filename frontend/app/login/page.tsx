@@ -46,6 +46,8 @@ export default function LoginPage() {
       // Better error messages
       if (err.code === 'ERR_NETWORK' || err.message?.includes('CONNECTION_REFUSED')) {
         setError('Cannot connect to server. Please check if the backend is running and NEXT_PUBLIC_API_URL is configured correctly.')
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Request timed out. The server may be waking up (this can take 30-60 seconds on free tier). Please try again in a moment.')
       } else {
         setError(err.response?.data?.message || err.message || 'An error occurred')
       }
