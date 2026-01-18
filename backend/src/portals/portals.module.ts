@@ -9,6 +9,7 @@ import { VaultModule } from '../vault/vault.module';
 import { AutomationModule } from '../automation/automation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AiModule } from '../ai/ai.module';
     AutomationModule,
     NotificationsModule,
     AiModule,
+    UsersModule,
   ],
   providers: [PortalsService, PortalsScheduler],
   controllers: [PortalsController],
