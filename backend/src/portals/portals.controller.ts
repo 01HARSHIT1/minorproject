@@ -58,6 +58,11 @@ export class PortalsController {
     return this.portalsService.getUserConnections(req.user.userId);
   }
 
+  @Get('summary')
+  async getDashboardSummary(@Request() req) {
+    return this.portalsService.getDashboardSummary(req.user.userId);
+  }
+
   @Get(':id')
   async getConnection(@Param('id') id: string, @Request() req) {
     return this.portalsService.getConnection(id, req.user.userId);

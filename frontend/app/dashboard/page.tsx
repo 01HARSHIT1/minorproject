@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/lib/api'
 import Link from 'next/link'
-import { GraduationCap, Plus, LogOut, User, Link2, Calendar, Activity } from 'lucide-react'
+import { GraduationCap, Plus, LogOut, User, Link2, Calendar, Activity, FileText, AlertTriangle, Clock, Bell, TrendingUp, DollarSign, BookOpen, CheckCircle2, ArrowRight } from 'lucide-react'
 
 interface PortalConnection {
   id: string
@@ -15,6 +15,37 @@ interface PortalConnection {
   createdAt: string
 }
 
+interface DashboardSummary {
+  totalPortals: number
+  activePortals: number
+  totalAssignments: number
+  pendingAssignments: number
+  overdueAssignments: number
+  assignmentsDueSoon: number
+  upcomingExams: number
+  totalNotices: number
+  recentNotices: Array<{
+    title: string
+    content: string
+    date: string | Date
+    category: string
+    connectionId: string
+    portalType: string
+    daysAgo: number
+  }>
+  upcomingDeadlines: Array<{
+    id: string
+    title: string
+    course: string
+    dueDate: string | Date
+    connectionId: string
+    portalType: string
+    type: 'assignment' | 'exam'
+  }>
+  totalFeesDue: number
+  averageAttendance: number
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
@@ -22,6 +53,7 @@ export default function DashboardPage() {
   const logout = useAuthStore((state) => state.logout)
   const hasHydrated = useAuthStore((state) => state._hasHydrated)
   const [connections, setConnections] = useState<PortalConnection[]>([])
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -39,6 +71,7 @@ export default function DashboardPage() {
     }
 
     fetchConnections()
+    fetchSummary()
   }, [isAuthenticated, router, hasHydrated])
 
   const fetchConnections = async () => {
@@ -49,6 +82,15 @@ export default function DashboardPage() {
       console.error('Failed to fetch connections:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSummary = async () => {
+    try {
+      const { data } = await api.get('/portals/summary')
+      setSummary(data)
+    } catch (error) {
+      console.error('Failed to fetch summary:', error)
     }
   }
 
@@ -96,8 +138,8 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Portals</h2>
-            <p className="text-gray-600">Manage and monitor all your college portal connections</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
+            <p className="text-gray-600">Overview of all your college portal connections</p>
           </div>
           <Link
             href="/dashboard/connect"
@@ -107,6 +149,230 @@ export default function DashboardPage() {
             Connect Portal
           </Link>
         </div>
+
+        {/* Summary Cards */}
+        {summary && connections.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            {/* Pending Assignments */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-3 rounded-lg">
+                  <FileText className="w-6 h-6 text-white" />
+                </div>
+                {summary.overdueAssignments > 0 && (
+                  <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
+                    {summary.overdueAssignments} Overdue
+                  </span>
+                )}
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                {summary.pendingAssignments}
+              </div>
+              <div className="text-sm text-gray-600">Pending Assignments</div>
+              {summary.assignmentsDueSoon > 0 && (
+                <div className="mt-3 text-xs text-amber-600 font-semibold">
+                  {summary.assignmentsDueSoon} due within 7 days
+                </div>
+              )}
+            </div>
+
+            {/* Upcoming Exams */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-3 rounded-lg">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                {summary.upcomingExams}
+              </div>
+              <div className="text-sm text-gray-600">Upcoming Exams</div>
+              <div className="mt-3 text-xs text-blue-600 font-semibold">
+                Next 7 days
+              </div>
+            </div>
+
+            {/* Attendance */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-white" />
+                </div>
+                {summary.averageAttendance < 75 && (
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
+                    Low
+                  </span>
+                )}
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                {summary.averageAttendance.toFixed(1)}%
+              </div>
+              <div className="text-sm text-gray-600">Average Attendance</div>
+              {summary.averageAttendance < 75 && (
+                <div className="mt-3 text-xs text-yellow-600 font-semibold">
+                  Below 75% threshold
+                </div>
+              )}
+            </div>
+
+            {/* Fees Due */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-gradient-to-br from-red-500 to-pink-600 p-3 rounded-lg">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold text-gray-900 mb-1">
+                ₹{summary.totalFeesDue.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600">Total Fees Due</div>
+              {summary.totalFeesDue > 0 && (
+                <div className="mt-3 text-xs text-red-600 font-semibold">
+                  Payment pending
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Deadlines & Recent Notices */}
+        {summary && connections.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            {/* Upcoming Deadlines */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary-600" />
+                  Upcoming Deadlines
+                </h3>
+                {summary.upcomingDeadlines.length > 0 && (
+                  <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-bold">
+                    {summary.upcomingDeadlines.length}
+                  </span>
+                )}
+              </div>
+              {summary.upcomingDeadlines.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No upcoming deadlines</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {summary.upcomingDeadlines.slice(0, 5).map((deadline) => {
+                    const dueDate = new Date(deadline.dueDate)
+                    const daysUntil = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                    const isOverdue = dueDate < new Date()
+                    
+                    return (
+                      <Link
+                        key={deadline.id}
+                        href={`/dashboard/portal/${deadline.connectionId}`}
+                        className="block p-4 border-2 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-all"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {deadline.type === 'assignment' ? (
+                                <FileText className="w-4 h-4 text-orange-600" />
+                              ) : (
+                                <BookOpen className="w-4 h-4 text-blue-600" />
+                              )}
+                              <span className="text-xs font-semibold text-gray-500 uppercase">
+                                {deadline.portalType}
+                              </span>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 mb-1">{deadline.title}</h4>
+                            <p className="text-sm text-gray-600">{deadline.course}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-sm font-bold ${
+                              isOverdue ? 'text-red-600' : daysUntil <= 1 ? 'text-orange-600' : 'text-gray-600'
+                            }`}>
+                              {isOverdue 
+                                ? 'Overdue'
+                                : daysUntil === 0
+                                ? 'Today'
+                                : daysUntil === 1
+                                ? 'Tomorrow'
+                                : `${daysUntil} days`
+                              }
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {dueDate.toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                  {summary.upcomingDeadlines.length > 5 && (
+                    <Link
+                      href="/dashboard"
+                      className="block text-center text-primary-600 hover:text-primary-700 font-semibold text-sm py-2"
+                    >
+                      View all {summary.upcomingDeadlines.length} deadlines →
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Recent Notices */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-primary-600" />
+                  Recent Notices
+                </h3>
+                {summary.recentNotices.length > 0 && (
+                  <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-bold">
+                    {summary.totalNotices} total
+                  </span>
+                )}
+              </div>
+              {summary.recentNotices.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Bell className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No recent notices</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {summary.recentNotices.map((notice, idx) => (
+                    <Link
+                      key={idx}
+                      href={`/dashboard/portal/${notice.connectionId}`}
+                      className="block p-4 border-l-4 border-primary-500 bg-gray-50 rounded-lg hover:bg-primary-50 transition-all"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-semibold text-gray-900">{notice.title}</h4>
+                        <span className="text-xs font-semibold text-gray-500 uppercase ml-2">
+                          {notice.portalType}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{notice.content}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-500">
+                        <span>{notice.category}</span>
+                        <span>•</span>
+                        <span>{notice.daysAgo === 0 ? 'Today' : `${notice.daysAgo} day${notice.daysAgo > 1 ? 's' : ''} ago`}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Portal Connections Section */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Your Portals</h2>
+            {summary && (
+              <div className="text-sm text-gray-600">
+                {summary.activePortals} active of {summary.totalPortals} total
+              </div>
+            )}
+          </div>
 
         {loading ? (
           <div className="text-center py-12">

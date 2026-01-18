@@ -437,6 +437,162 @@ export class PortalsService {
     return state.assignments || [];
   }
 
+  /**
+   * Get dashboard summary across all user's portals
+   */
+  async getDashboardSummary(userId: string): Promise<{
+    totalPortals: number;
+    activePortals: number;
+    totalAssignments: number;
+    pendingAssignments: number;
+    overdueAssignments: number;
+    assignmentsDueSoon: number;
+    upcomingExams: number;
+    totalNotices: number;
+    recentNotices: any[];
+    upcomingDeadlines: any[];
+    totalFeesDue: number;
+    averageAttendance: number;
+  }> {
+    const connections = await this.getUserConnections(userId);
+    const activeConnections = connections.filter(c => c.isActive);
+
+    let totalAssignments = 0;
+    let pendingAssignments = 0;
+    let overdueAssignments = 0;
+    let assignmentsDueSoon = 0;
+    let upcomingExams = 0;
+    let totalNotices = 0;
+    const recentNotices: any[] = [];
+    const upcomingDeadlines: any[] = [];
+    let totalFeesDue = 0;
+    let totalAttendance = 0;
+    let attendanceCount = 0;
+
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    for (const connection of activeConnections) {
+      try {
+        const state = await this.getLatestState(connection.id, userId);
+
+        // Count assignments
+        if (state.assignments && state.assignments.length > 0) {
+          totalAssignments += state.assignments.length;
+          
+          for (const assignment of state.assignments) {
+            const dueDate = assignment.dueDate instanceof Date 
+              ? assignment.dueDate 
+              : new Date(assignment.dueDate);
+            
+            if (assignment.status === 'pending' || assignment.status === 'overdue') {
+              pendingAssignments++;
+              
+              if (dueDate < now) {
+                overdueAssignments++;
+              } else if (dueDate <= sevenDaysFromNow) {
+                assignmentsDueSoon++;
+              }
+
+              // Add to upcoming deadlines
+              if (dueDate > now && dueDate <= sevenDaysFromNow) {
+                upcomingDeadlines.push({
+                  id: assignment.id,
+                  title: assignment.title,
+                  course: assignment.course,
+                  dueDate: dueDate,
+                  connectionId: connection.id,
+                  portalType: connection.portalType,
+                  type: 'assignment',
+                });
+              }
+            }
+          }
+        }
+
+        // Count exams
+        if (state.exams && state.exams.length > 0) {
+          for (const exam of state.exams) {
+            const examDate = exam.date instanceof Date ? exam.date : new Date(exam.date);
+            if (examDate > now && examDate <= sevenDaysFromNow) {
+              upcomingExams++;
+              upcomingDeadlines.push({
+                id: `exam_${exam.subject}_${examDate.getTime()}`,
+                title: `${exam.subject} - ${exam.type}`,
+                course: exam.subject,
+                dueDate: examDate,
+                connectionId: connection.id,
+                portalType: connection.portalType,
+                type: 'exam',
+              });
+            }
+          }
+        }
+
+        // Count notices
+        if (state.notices && state.notices.length > 0) {
+          totalNotices += state.notices.length;
+          
+          // Get recent notices (last 7 days)
+          for (const notice of state.notices) {
+            const noticeDate = notice.date instanceof Date ? notice.date : new Date(notice.date);
+            const daysAgo = (now.getTime() - noticeDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (daysAgo <= 7) {
+              recentNotices.push({
+                ...notice,
+                connectionId: connection.id,
+                portalType: connection.portalType,
+                daysAgo: Math.floor(daysAgo),
+              });
+            }
+          }
+        }
+
+        // Sum fees
+        if (state.fees && state.fees.totalDue) {
+          totalFeesDue += state.fees.totalDue || 0;
+        }
+
+        // Calculate average attendance
+        if (state.attendance && state.attendance.percentage !== undefined) {
+          totalAttendance += state.attendance.percentage;
+          attendanceCount++;
+        }
+      } catch (error) {
+        this.logger.error(`Failed to get state for connection ${connection.id}:`, error);
+      }
+    }
+
+    // Sort upcoming deadlines by date
+    upcomingDeadlines.sort((a, b) => {
+      const dateA = a.dueDate instanceof Date ? a.dueDate : new Date(a.dueDate);
+      const dateB = b.dueDate instanceof Date ? b.dueDate : new Date(b.dueDate);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    // Sort recent notices by date (newest first)
+    recentNotices.sort((a, b) => {
+      const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+      const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return {
+      totalPortals: connections.length,
+      activePortals: activeConnections.length,
+      totalAssignments,
+      pendingAssignments,
+      overdueAssignments,
+      assignmentsDueSoon,
+      upcomingExams,
+      totalNotices,
+      recentNotices: recentNotices.slice(0, 5), // Top 5 recent notices
+      upcomingDeadlines: upcomingDeadlines.slice(0, 10), // Top 10 upcoming deadlines
+      totalFeesDue,
+      averageAttendance: attendanceCount > 0 ? totalAttendance / attendanceCount : 0,
+    };
+  }
+
   async getAssignment(
     connectionId: string,
     userId: string,
