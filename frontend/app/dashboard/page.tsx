@@ -141,13 +141,22 @@ export default function DashboardPage() {
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
             <p className="text-gray-600">Overview of all your college portal connections</p>
           </div>
-          <Link
-            href="/dashboard/connect"
-            className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
-          >
-            <Plus className="w-5 h-5" />
-            Connect Portal
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard/calendar"
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-800 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
+            >
+              <Calendar className="w-5 h-5" />
+              Calendar View
+            </Link>
+            <Link
+              href="/dashboard/connect"
+              className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
+            >
+              <Plus className="w-5 h-5" />
+              Connect Portal
+            </Link>
+          </div>
         </div>
 
         {/* Summary Cards */}
