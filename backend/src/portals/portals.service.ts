@@ -62,7 +62,15 @@ export class PortalsService {
       credentialToken,
     });
 
-    return this.connectionsRepository.save(connection);
+    const savedConnection = await this.connectionsRepository.save(connection);
+
+    // Perform initial sync in the background (don't wait for it)
+    this.syncConnection(savedConnection.id, userId).catch((error) => {
+      this.logger.warn(`Initial sync failed for connection ${savedConnection.id}:`, error);
+      // Non-blocking - connection is still created successfully
+    });
+
+    return savedConnection;
   }
 
   async getUserConnections(userId: string): Promise<PortalConnection[]> {
