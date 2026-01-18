@@ -15,6 +15,19 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PortalsService } from './portals.service';
 import { PortalType } from './entities/portal-connection.entity';
 
+// File type for multer uploads
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
+
 @Controller('portals')
 @UseGuards(JwtAuthGuard)
 export class PortalsController {
@@ -111,7 +124,7 @@ export class PortalsController {
     @Param('id') id: string,
     @Param('assignmentId') assignmentId: string,
     @Request() req,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile | undefined,
   ) {
     return this.portalsService.reviewAssignmentForSubmission(
       id,
@@ -128,7 +141,7 @@ export class PortalsController {
     @Param('assignmentId') assignmentId: string,
     @Request() req,
     @Body() body: { comments?: string },
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: MulterFile | undefined,
   ) {
     return this.portalsService.submitAssignment(
       id,

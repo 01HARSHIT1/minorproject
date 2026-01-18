@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PortalConnection, PortalType } from './entities/portal-connection.entity';
@@ -9,8 +9,23 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import * as crypto from 'crypto';
 
+// File type for multer uploads
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+  destination?: string;
+  filename?: string;
+  path?: string;
+}
+
 @Injectable()
 export class PortalsService {
+  private readonly logger = new Logger(PortalsService.name);
+
   constructor(
     @InjectRepository(PortalConnection)
     private connectionsRepository: Repository<PortalConnection>,
@@ -441,7 +456,7 @@ export class PortalsService {
     connectionId: string,
     userId: string,
     assignmentId: string,
-    file: Express.Multer.File,
+    file: MulterFile | undefined,
   ): Promise<any> {
     const assignment = await this.getAssignment(connectionId, userId, assignmentId);
 
@@ -456,7 +471,6 @@ export class PortalsService {
     const review = await this.aiService.reviewAssignment(fileContent, {
       title: assignment.title,
       course: assignment.course,
-      courseCode: assignment.courseCode,
       description: assignment.description,
       dueDate: new Date(assignment.dueDate),
       fileType: file.mimetype,
@@ -478,7 +492,7 @@ export class PortalsService {
     connectionId: string,
     userId: string,
     assignmentId: string,
-    file: Express.Multer.File,
+    file: MulterFile | undefined,
     comments?: string,
   ): Promise<any> {
     const connection = await this.getConnection(connectionId, userId);
