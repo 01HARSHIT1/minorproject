@@ -328,6 +328,96 @@ ${JSON.stringify(data, null, 2)}`;
     };
   }
 
+  /**
+   * Chat with AI assistant
+   */
+  async chat(message: string, context?: any): Promise<{ response: string }> {
+    if (!this.openai) {
+      // Fallback response without AI
+      return { response: this.getFallbackChatResponse(message, context) };
+    }
+
+    try {
+      const systemPrompt = `You are an AI assistant helping students manage their academic portal. 
+You can help with:
+- Summarizing deadlines and assignments
+- Providing study recommendations
+- Answering questions about portal data
+- Explaining academic concepts
+
+Use the provided context to answer questions accurately.`;
+
+      const userPrompt = context 
+        ? `Context: ${JSON.stringify(context, null, 2)}\n\nUser question: ${message}`
+        : message;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.7,
+      });
+
+      return { response: response.choices[0].message.content || 'I apologize, but I could not generate a response.' };
+    } catch (error) {
+      this.logger.error('AI chat failed:', error);
+      return { response: this.getFallbackChatResponse(message, context) };
+    }
+  }
+
+  private getFallbackChatResponse(message: string, context?: any): string {
+    const lowerMessage = message.toLowerCase();
+    
+    // Handle deadlines/summaries
+    if (lowerMessage.includes('deadline') || lowerMessage.includes('due') || lowerMessage.includes('upcoming')) {
+      if (context?.assignments && context.assignments.length > 0) {
+        const pending = context.assignments.filter((a: any) => a.status === 'pending' || a.status === 'overdue');
+        if (pending.length === 0) {
+          return 'Great news! You have no pending assignments. Keep up the good work! 🎉';
+        }
+        const summaries = pending.slice(0, 3).map((a: any) => {
+          const dueDate = new Date(a.dueDate);
+          const daysUntil = Math.ceil((dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          return `• ${a.title} (${a.course}) - ${daysUntil < 0 ? `Overdue by ${Math.abs(daysUntil)} days` : `Due in ${daysUntil} days`}`;
+        }).join('\n');
+        return `Here are your upcoming deadlines:\n\n${summaries}${pending.length > 3 ? `\n\n...and ${pending.length - 3} more` : ''}`;
+      }
+      return 'I don\'t see any assignment data in your context. Please check your portal connections.';
+    }
+
+    // Handle assignments
+    if (lowerMessage.includes('assignment') || lowerMessage.includes('homework')) {
+      if (context?.assignments) {
+        const total = context.assignments.length;
+        const pending = context.assignments.filter((a: any) => a.status === 'pending' || a.status === 'overdue').length;
+        return `You have ${total} total assignments, with ${pending} pending. ${pending > 0 ? 'Focus on completing them before their deadlines!' : 'All assignments are completed. Excellent work!'}`;
+      }
+      return 'I don\'t have access to your assignment data. Please sync your portal first.';
+    }
+
+    // Handle exams
+    if (lowerMessage.includes('exam') || lowerMessage.includes('test')) {
+      if (context?.exams && context.exams.length > 0) {
+        const upcoming = context.exams.filter((e: any) => new Date(e.date) > new Date());
+        if (upcoming.length === 0) {
+          return 'No upcoming exams scheduled. Great job staying ahead!';
+        }
+        const examList = upcoming.slice(0, 3).map((e: any) => {
+          const examDate = new Date(e.date);
+          const daysUntil = Math.ceil((examDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          return `• ${e.subject} - ${examDate.toLocaleDateString()} (${daysUntil} days away)`;
+        }).join('\n');
+        return `Your upcoming exams:\n\n${examList}${upcoming.length > 3 ? `\n\n...and ${upcoming.length - 3} more` : ''}`;
+      }
+      return 'No exam data available. Please check your portal.';
+    }
+
+    // Default response
+    return 'I can help you with deadlines, assignments, exams, and notices. Try asking "What are my upcoming deadlines?" or "Summarize my assignments"!';
+  }
+
   private getDefaultAnalysis(data: PortalData): {
     summary: string;
     alerts: string[];
