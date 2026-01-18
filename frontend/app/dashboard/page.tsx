@@ -175,13 +175,13 @@ export default function DashboardPage() {
         {summary && connections.length > 0 && (
           <div className="grid gap-6 lg:grid-cols-2 mb-8">
             <CalendarWidget
-              events={[
-                ...(summary.upcomingDeadlines?.map(d => ({
+              events={
+                (summary.upcomingDeadlines?.map(d => ({
                   date: new Date(d.dueDate),
-                  type: d.type === 'assignment' ? 'assignment' : 'deadline' as const,
+                  type: (d.type === 'assignment' ? 'assignment' : d.type === 'exam' ? 'exam' : 'deadline') as 'assignment' | 'exam' | 'deadline',
                   title: d.title,
-                })) || []),
-              ]}
+                })) || []) as Array<{ date: Date; type: 'assignment' | 'exam' | 'deadline'; title: string }>
+              }
             />
             <AIAssistantChat
               assignments={summary.upcomingDeadlines?.filter(d => d.type === 'assignment').map(d => ({
