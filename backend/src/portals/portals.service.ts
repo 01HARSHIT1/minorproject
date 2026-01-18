@@ -135,16 +135,20 @@ export class PortalsService {
       order: { createdAt: 'DESC' },
     });
 
-    // Calculate notices hash
+    // Calculate notices and assignments hash
     const noticesHash = this.calculateNoticesHash(data.notices || []);
+    const assignmentsHash = this.calculateAssignmentsHash(data.assignments || []);
 
     // Check for changes
-    const hasChanges = !previousState || previousState.noticesHash !== noticesHash;
+    const hasNoticesChanges = !previousState || previousState.noticesHash !== noticesHash;
+    const hasAssignmentsChanges = !previousState || previousState.assignmentsHash !== assignmentsHash;
+    const hasChanges = hasNoticesChanges || hasAssignmentsChanges;
 
     // Create new state
     const newState = this.statesRepository.create({
       connectionId: id,
       noticesHash,
+      assignmentsHash,
       attendance: data.attendance,
       exams: data.exams,
       results: data.results,
@@ -240,33 +244,85 @@ export class PortalsService {
   }> {
     const state = await this.getLatestState(connectionId, userId);
 
-    // Analyze portal data with AI
+    // Analyze portal data with AI (including assignments)
     const analysis = await this.aiService.analyzePortalData({
       attendance: state.attendance,
       exams: state.exams,
       results: state.results,
       fees: state.fees,
       notices: state.notices,
+      assignments: state.assignments,
     });
 
-    // Get additional recommendations
+    // Get additional recommendations (including assignments)
     const recommendations = await this.aiService.generateRecommendations({
       attendance: state.attendance,
       exams: state.exams,
       results: state.results,
       fees: state.fees,
       notices: state.notices,
+      assignments: state.assignments,
     });
+
+    // Add assignment-specific recommendations
+    const assignmentRecommendations: string[] = [];
+    if (state.assignments && state.assignments.length > 0) {
+      const pendingAssignments = state.assignments.filter(
+        a => a.status === 'pending' || a.status === 'overdue'
+      );
+      
+      if (pendingAssignments.length > 0) {
+        const now = new Date();
+        const sortedByDueDate = pendingAssignments.sort((a, b) => {
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
+
+        // Priority assignment recommendation
+        const nextAssignment = sortedByDueDate[0];
+        const dueDate = new Date(nextAssignment.dueDate);
+        const daysUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysUntilDue > 0) {
+          assignmentRecommendations.push(
+            `📝 Prioritize "${nextAssignment.title}" - due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`
+          );
+        } else if (daysUntilDue === 0) {
+          assignmentRecommendations.push(
+            `🚨 URGENT: "${nextAssignment.title}" is due today!`
+          );
+        }
+
+        // Overall assignment status
+        const overdueCount = state.assignments.filter(a => a.status === 'overdue').length;
+        if (overdueCount > 0) {
+          assignmentRecommendations.push(
+            `⚠️ You have ${overdueCount} overdue assignment${overdueCount > 1 ? 's' : ''}. Contact your instructors.`
+          );
+        }
+      }
+
+      const submittedCount = state.assignments.filter(a => a.status === 'submitted').length;
+      if (submittedCount > 0) {
+        assignmentRecommendations.push(
+          `✅ ${submittedCount} assignment${submittedCount > 1 ? 's' : ''} submitted successfully`
+        );
+      }
+    }
 
     return {
       ...analysis,
-      recommendations: [...analysis.recommendations, ...recommendations],
+      recommendations: [...analysis.recommendations, ...recommendations, ...assignmentRecommendations],
     };
   }
 
   private calculateNoticesHash(notices: Array<any>): string {
     const noticesString = JSON.stringify(notices);
     return crypto.createHash('sha256').update(noticesString).digest('hex');
+  }
+
+  private calculateAssignmentsHash(assignments: Array<any>): string {
+    const assignmentsString = JSON.stringify(assignments);
+    return crypto.createHash('sha256').update(assignmentsString).digest('hex');
   }
 
   private async handleStateChange(
@@ -277,19 +333,87 @@ export class PortalsService {
     // Get user for notifications
     // In production, fetch user with notification preferences
 
-    // Analyze with AI
+    // Detect assignment changes
+    const previousAssignments = previousState?.assignments || [];
+    const newAssignments = newState.assignments || [];
+    
+    // Find new assignments
+    const newAssignmentIds = newAssignments.map(a => a.id);
+    const previousAssignmentIds = previousAssignments.map(a => a.id);
+    const addedAssignments = newAssignments.filter(
+      a => !previousAssignmentIds.includes(a.id)
+    );
+
+    // Find assignments with approaching deadlines
+    const now = new Date();
+    const assignmentsDueSoon = newAssignments.filter((assignment) => {
+      if (assignment.status === 'submitted' || assignment.status === 'graded') {
+        return false;
+      }
+      const dueDate = new Date(assignment.dueDate);
+      const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return hoursUntilDue > 0 && hoursUntilDue <= 48; // Due within 48 hours
+    });
+
+    // Find overdue assignments
+    const overdueAssignments = newAssignments.filter((assignment) => {
+      if (assignment.status === 'submitted' || assignment.status === 'graded') {
+        return false;
+      }
+      const dueDate = new Date(assignment.dueDate);
+      return dueDate < now;
+    });
+
+    // Analyze with AI (including assignments)
     const analysis = await this.aiService.analyzePortalData({
       attendance: newState.attendance,
       exams: newState.exams,
       results: newState.results,
       fees: newState.fees,
       notices: newState.notices,
+      assignments: newState.assignments,
     });
 
+    // Build assignment-specific alerts
+    const assignmentAlerts: string[] = [];
+    
+    if (addedAssignments.length > 0) {
+      assignmentAlerts.push(
+        `🎯 ${addedAssignments.length} new assignment${addedAssignments.length > 1 ? 's' : ''} posted: ${addedAssignments.map(a => a.title).join(', ')}`
+      );
+    }
+
+    if (overdueAssignments.length > 0) {
+      assignmentAlerts.push(
+        `⚠️ ${overdueAssignments.length} assignment${overdueAssignments.length > 1 ? 's' : ''} overdue: ${overdueAssignments.map(a => a.title).join(', ')}`
+      );
+    }
+
+    if (assignmentsDueSoon.length > 0) {
+      assignmentsDueSoon.forEach((assignment) => {
+        const dueDate = new Date(assignment.dueDate);
+        const hoursUntilDue = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+        assignmentAlerts.push(
+          `⏰ Assignment "${assignment.title}" due in ${hoursUntilDue} hour${hoursUntilDue > 1 ? 's' : ''}`
+        );
+      });
+    }
+
+    // Combine AI alerts with assignment alerts
+    const allAlerts = [...analysis.alerts, ...assignmentAlerts];
+
     // Send notifications based on alerts
-    if (analysis.alerts.length > 0) {
+    if (allAlerts.length > 0) {
       // In production, send to user's preferred channels
-      console.log(`[NOTIFICATION] Alerts for ${connection.collegeId}:`, analysis.alerts);
+      this.logger.log(`[NOTIFICATION] Alerts for ${connection.collegeId}:`, allAlerts);
+      
+      // Send via notification service (email, push, etc.)
+      // await this.notificationsService.sendNotification({
+      //   userId: connection.userId,
+      //   title: 'Portal Updates',
+      //   message: allAlerts.join('\n'),
+      //   type: 'portal_update',
+      // });
     }
   }
 

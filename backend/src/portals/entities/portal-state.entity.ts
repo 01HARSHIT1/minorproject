@@ -24,6 +24,10 @@ export class PortalState {
   @Column({ type: 'text', nullable: true })
   noticesHash: string;
 
+  // Hash of assignments to detect changes
+  @Column({ type: 'text', nullable: true })
+  assignmentsHash: string;
+
   // Structured data
   @Column({ type: 'jsonb', nullable: true })
   attendance: {
