@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/lib/api'
 import Link from 'next/link'
-import { GraduationCap, Plus, LogOut, User, Link2, Calendar, Activity, FileText, AlertTriangle, Clock, Bell, TrendingUp, DollarSign, BookOpen, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Plus, Link2, Calendar, Activity, FileText, Clock, Bell, TrendingUp, BookOpen, CheckCircle2, User, DollarSign } from 'lucide-react'
 
 interface PortalConnection {
   id: string
@@ -49,30 +49,16 @@ interface DashboardSummary {
 export default function DashboardPage() {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const logout = useAuthStore((state) => state.logout)
   const hasHydrated = useAuthStore((state) => state._hasHydrated)
   const [connections, setConnections] = useState<PortalConnection[]>([])
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Hydrate store on client side
-    useAuthStore.getState().hydrate()
-  }, [])
-
-  useEffect(() => {
-    // Only run on client side after hydration
-    if (typeof window === 'undefined' || !hasHydrated) return
-    
-    if (!isAuthenticated) {
-      router.push('/login')
-      return
-    }
-
+    if (typeof window === 'undefined') return
     fetchConnections()
     fetchSummary()
-  }, [isAuthenticated, router, hasHydrated])
+  }, [])
 
   const fetchConnections = async () => {
     try {
@@ -94,155 +80,94 @@ export default function DashboardPage() {
     }
   }
 
-  // Don't render until hydrated
-  if (!hasHydrated || !isAuthenticated) {
+  if (!hasHydrated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      <nav className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-primary-600 to-primary-800 p-2 rounded-lg">
-                <GraduationCap className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-                Student Portal Gateway
-              </h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg">
-                <User className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">
-                  {user?.firstName} {user?.lastName}
-                </span>
-              </div>
-              <button
-                onClick={logout}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div>
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
+        <p className="text-gray-600">Welcome back, {user?.firstName}!</p>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h2>
-            <p className="text-gray-600">Overview of all your college portal connections</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard/calendar"
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-700 text-white px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-800 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
-            >
-              <Calendar className="w-5 h-5" />
-              Calendar View
-            </Link>
-            <Link
-              href="/dashboard/connect"
-              className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-lg hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              Connect Portal
-            </Link>
+      {/* User Profile Card + Summary Cards Row */}
+      <div className="grid gap-6 lg:grid-cols-4 mb-6">
+        {/* User Profile Card */}
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3">
+              {user?.firstName?.[0] || 'U'}
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">
+              {user?.firstName} {user?.lastName}
+            </h3>
+            <p className="text-sm text-gray-600 mb-3">B.Tech (Hons) CSE</p>
+            <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+              Semester 6
+            </button>
           </div>
         </div>
 
         {/* Summary Cards */}
-        {summary && connections.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-            {/* Pending Assignments */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-3 rounded-lg">
+        {summary && (
+          <>
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-blue-500 p-3 rounded-lg">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
-                {summary.overdueAssignments > 0 && (
-                  <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">
-                    {summary.overdueAssignments} Overdue
-                  </span>
-                )}
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {summary.pendingAssignments}
               </div>
               <div className="text-sm text-gray-600">Pending Assignments</div>
               {summary.assignmentsDueSoon > 0 && (
-                <div className="mt-3 text-xs text-amber-600 font-semibold">
-                  {summary.assignmentsDueSoon} due within 7 days
+                <div className="mt-2 text-xs text-amber-600 font-semibold">
+                  {summary.assignmentsDueSoon} due in 7 days
                 </div>
               )}
             </div>
 
-            {/* Upcoming Exams */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 p-3 rounded-lg">
-                  <BookOpen className="w-6 h-6 text-white" />
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-yellow-500 p-3 rounded-lg">
+                  <Clock className="w-6 h-6 text-white" />
                 </div>
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {summary.upcomingExams}
               </div>
               <div className="text-sm text-gray-600">Upcoming Exams</div>
-              <div className="mt-3 text-xs text-blue-600 font-semibold">
+              <div className="mt-2 text-xs text-blue-600 font-semibold">
                 Next 7 days
               </div>
             </div>
 
-            {/* Attendance */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-lg">
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-teal-500 p-3 rounded-lg">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
-                {summary.averageAttendance < 75 && (
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-bold">
-                    Low
-                  </span>
-                )}
               </div>
               <div className="text-3xl font-bold text-gray-900 mb-1">
                 {summary.averageAttendance.toFixed(1)}%
               </div>
               <div className="text-sm text-gray-600">Average Attendance</div>
               {summary.averageAttendance < 75 && (
-                <div className="mt-3 text-xs text-yellow-600 font-semibold">
+                <div className="mt-2 text-xs text-red-600 font-semibold">
                   Below 75% threshold
                 </div>
               )}
             </div>
-
-            {/* Fees Due */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition">
-              <div className="flex items-center justify-between mb-4">
-                <div className="bg-gradient-to-br from-red-500 to-pink-600 p-3 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-gray-900 mb-1">
-                ₹{summary.totalFeesDue.toLocaleString()}
-              </div>
-              <div className="text-sm text-gray-600">Total Fees Due</div>
-              {summary.totalFeesDue > 0 && (
-                <div className="mt-3 text-xs text-red-600 font-semibold">
-                  Payment pending
-                </div>
-              )}
-            </div>
-          </div>
+          </>
         )}
+      </div>
 
         {/* Upcoming Deadlines & Recent Notices */}
         {summary && connections.length > 0 && (
@@ -445,7 +370,6 @@ export default function DashboardPage() {
           </div>
           )}
         </div>
-      </main>
     </div>
   )
 }
