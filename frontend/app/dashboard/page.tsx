@@ -6,6 +6,8 @@ import { useAuthStore } from '@/store/authStore'
 import api from '@/lib/api'
 import Link from 'next/link'
 import { Plus, Link2, Calendar, Activity, FileText, Clock, Bell, TrendingUp, BookOpen, CheckCircle2, User, DollarSign } from 'lucide-react'
+import CalendarWidget from '@/components/dashboard/CalendarWidget'
+import AIAssistantChat from '@/components/dashboard/AIAssistantChat'
 
 interface PortalConnection {
   id: string
@@ -168,6 +170,37 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+        {/* Calendar and AI Chat Row */}
+        {summary && connections.length > 0 && (
+          <div className="grid gap-6 lg:grid-cols-2 mb-8">
+            <CalendarWidget
+              events={[
+                ...(summary.upcomingDeadlines?.map(d => ({
+                  date: new Date(d.dueDate),
+                  type: d.type === 'assignment' ? 'assignment' : 'deadline' as const,
+                  title: d.title,
+                })) || []),
+              ]}
+            />
+            <AIAssistantChat
+              assignments={summary.upcomingDeadlines?.filter(d => d.type === 'assignment').map(d => ({
+                id: d.id,
+                title: d.title,
+                course: d.course,
+                dueDate: new Date(d.dueDate),
+                status: 'pending' as const,
+              })) || []}
+              exams={summary.upcomingDeadlines?.filter(d => d.type === 'exam').map(d => ({
+                subject: d.title,
+                date: new Date(d.dueDate),
+                type: 'Exam',
+                status: 'scheduled',
+              })) || []}
+              notices={summary.recentNotices || []}
+            />
+          </div>
+        )}
 
         {/* Upcoming Deadlines & Recent Notices */}
         {summary && connections.length > 0 && (
