@@ -36,6 +36,19 @@ export interface PortalData {
     date: Date;
     category: string;
   }>;
+  assignments?: Array<{
+    id: string;
+    title: string;
+    course: string;
+    courseCode: string;
+    description: string;
+    dueDate: Date;
+    status: 'pending' | 'submitted' | 'overdue' | 'graded';
+    submittedDate?: Date;
+    maxMarks?: number;
+    obtainedMarks?: number;
+    submissionUrl?: string;
+  }>;
 }
 
 export abstract class BaseConnector {

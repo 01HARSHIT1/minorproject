@@ -7,7 +7,10 @@ import {
   UseGuards,
   Request,
   Delete,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PortalsService } from './portals.service';
 import { PortalType } from './entities/portal-connection.entity';
@@ -86,5 +89,53 @@ export class PortalsController {
     const connection = await this.portalsService.getConnection(id, req.user.userId);
     connection.isActive = false;
     return connection;
+  }
+
+  @Get(':id/assignments')
+  async getAssignments(@Param('id') id: string, @Request() req) {
+    return this.portalsService.getAssignments(id, req.user.userId);
+  }
+
+  @Get(':id/assignments/:assignmentId')
+  async getAssignment(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @Request() req,
+  ) {
+    return this.portalsService.getAssignment(id, req.user.userId, assignmentId);
+  }
+
+  @Post(':id/assignments/:assignmentId/review')
+  @UseInterceptors(FileInterceptor('file'))
+  async reviewAssignment(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.portalsService.reviewAssignmentForSubmission(
+      id,
+      req.user.userId,
+      assignmentId,
+      file,
+    );
+  }
+
+  @Post(':id/assignments/:assignmentId/submit')
+  @UseInterceptors(FileInterceptor('file'))
+  async submitAssignment(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @Request() req,
+    @Body() body: { comments?: string },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.portalsService.submitAssignment(
+      id,
+      req.user.userId,
+      assignmentId,
+      file,
+      body.comments,
+    );
   }
 }

@@ -114,6 +114,18 @@ export class PortalsService {
             category: 'Academic',
           },
         ],
+        assignments: [
+          {
+            id: 'mock_assign_1',
+            title: 'Minor Project Submission',
+            course: 'Minor Project',
+            courseCode: 'PROJ3154_5',
+            description: 'Submit your minor project documentation and code',
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
+            status: 'pending',
+            maxMarks: 100,
+          },
+        ],
       };
     }
 
@@ -138,6 +150,7 @@ export class PortalsService {
       results: data.results,
       fees: data.fees,
       notices: data.notices,
+      assignments: data.assignments,
     });
 
     const savedState = await this.statesRepository.save(newState);
@@ -277,6 +290,130 @@ export class PortalsService {
     if (analysis.alerts.length > 0) {
       // In production, send to user's preferred channels
       console.log(`[NOTIFICATION] Alerts for ${connection.collegeId}:`, analysis.alerts);
+    }
+  }
+
+  async getAssignments(connectionId: string, userId: string): Promise<any[]> {
+    const state = await this.getLatestState(connectionId, userId);
+    return state.assignments || [];
+  }
+
+  async getAssignment(
+    connectionId: string,
+    userId: string,
+    assignmentId: string,
+  ): Promise<any> {
+    const assignments = await this.getAssignments(connectionId, userId);
+    const assignment = assignments.find((a) => a.id === assignmentId);
+    
+    if (!assignment) {
+      throw new NotFoundException('Assignment not found');
+    }
+
+    return assignment;
+  }
+
+  async reviewAssignmentForSubmission(
+    connectionId: string,
+    userId: string,
+    assignmentId: string,
+    file: Express.Multer.File,
+  ): Promise<any> {
+    const assignment = await this.getAssignment(connectionId, userId, assignmentId);
+
+    if (!file) {
+      throw new Error('No file provided for review');
+    }
+
+    // Read file content
+    const fileContent = file.buffer.toString('utf-8');
+
+    // Get AI review
+    const review = await this.aiService.reviewAssignment(fileContent, {
+      title: assignment.title,
+      course: assignment.course,
+      courseCode: assignment.courseCode,
+      description: assignment.description,
+      dueDate: new Date(assignment.dueDate),
+      fileType: file.mimetype,
+      fileName: file.originalname,
+    });
+
+    return {
+      assignment,
+      review,
+      fileInfo: {
+        name: file.originalname,
+        size: file.size,
+        type: file.mimetype,
+      },
+    };
+  }
+
+  async submitAssignment(
+    connectionId: string,
+    userId: string,
+    assignmentId: string,
+    file: Express.Multer.File,
+    comments?: string,
+  ): Promise<any> {
+    const connection = await this.getConnection(connectionId, userId);
+    const assignment = await this.getAssignment(connectionId, userId, assignmentId);
+
+    if (!file) {
+      throw new Error('No file provided for submission');
+    }
+
+    // Save file temporarily for submission
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    
+    const tempDir = os.tmpdir();
+    const tempFilePath = path.join(tempDir, `assignment_${assignmentId}_${Date.now()}_${file.originalname}`);
+
+    try {
+      // Write file to temp location
+      fs.writeFileSync(tempFilePath, file.buffer);
+
+      // Perform submission action on portal
+      const result = await this.performAction(
+        connectionId,
+        userId,
+        'submit_assignment',
+        {
+          assignmentId,
+          filePath: tempFilePath,
+          courseCode: assignment.courseCode,
+          courseName: assignment.course,
+          comments: comments || '',
+        },
+      );
+
+      // Cleanup temp file
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+
+      return {
+        success: result.success || false,
+        message: result.message || 'Assignment submission processed',
+        assignment,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      // Cleanup temp file on error
+      try {
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+
+      throw error;
     }
   }
 }

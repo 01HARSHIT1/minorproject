@@ -372,6 +372,66 @@ export class UpesConnector extends BaseConnector {
       if (results.length > 0) {
         data.results = results;
       }
+
+      // Scrape assignments - navigate to LMS if needed
+      // Assignments are typically in LMS -> Courses -> Individual Course -> Assignments
+      // For now, we'll try to detect assignment-related elements on current page
+      const assignmentSelectors = [
+        '.assignments',
+        '.assignment',
+        '[class*="assignment" i]',
+        '[id*="assignment" i]',
+        'table:has-text("Assignment")',
+        '.submission',
+        '[class*="submission" i]',
+      ];
+
+      const assignments: Array<{
+        id: string;
+        title: string;
+        course: string;
+        courseCode: string;
+        description: string;
+        dueDate: Date;
+        status: 'pending' | 'submitted' | 'overdue' | 'graded';
+        submittedDate?: Date;
+        maxMarks?: number;
+        obtainedMarks?: number;
+        submissionUrl?: string;
+      }> = [];
+
+      for (const selector of assignmentSelectors) {
+        try {
+          const elements = await this.page.$$(selector);
+          for (const element of elements) {
+            const rows = await element.$$('tr, .assignment-item, .assignment-row');
+            for (const row of rows) {
+              const text = await row.textContent();
+              if (text && text.length > 10 && (text.includes('Assignment') || text.includes('Submit'))) {
+                const cells = text.split('\n').filter((c) => c.trim().length > 0);
+                const dueDateMatch = text.match(/(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})/);
+                const statusMatch = text.match(/(pending|submitted|overdue|graded)/i);
+                
+                assignments.push({
+                  id: `assign_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  title: cells[0] || 'Assignment',
+                  course: cells[1] || 'Unknown Course',
+                  courseCode: cells[2] || '',
+                  description: cells.slice(3).join(' ') || '',
+                  dueDate: dueDateMatch ? new Date(dueDateMatch[1]) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                  status: (statusMatch ? statusMatch[1].toLowerCase() : 'pending') as 'pending' | 'submitted' | 'overdue' | 'graded',
+                });
+              }
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (assignments.length > 0) {
+        data.assignments = assignments;
+      }
     } catch (error) {
       console.error('[UPES] Scraping error:', error);
     }
@@ -393,6 +453,8 @@ export class UpesConnector extends BaseConnector {
         return await this.downloadFeeReceipt(params);
       case 'apply_leave':
         return await this.applyLeave(params);
+      case 'submit_assignment':
+        return await this.submitAssignment(params);
       default:
         throw new Error(`Unknown action: ${action}`);
     }
@@ -616,6 +678,187 @@ export class UpesConnector extends BaseConnector {
       }
 
       return { success: false, message: 'Could not find leave application form' };
+    } catch (error) {
+      return { success: false, message: `Error: ${error.message}` };
+    }
+  }
+
+  private async submitAssignment(params: Record<string, any>): Promise<any> {
+    try {
+      const { assignmentId, filePath, courseCode, courseName, comments } = params;
+
+      // Navigate to LMS if not already there
+      const lmsLinkSelectors = [
+        'a:has-text("LMS")',
+        'a[href*="lms" i]',
+        '.lms-link',
+        '[href*="lms.upes.ac.in"]',
+      ];
+
+      let lmsNavigated = false;
+      for (const selector of lmsLinkSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            await element.click();
+            await this.page.waitForTimeout(3000);
+            lmsNavigated = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // If LMS link found, wait for LMS to load
+      if (lmsNavigated) {
+        await this.page.waitForTimeout(3000);
+      }
+
+      // Try to find assignment submission page
+      // Common selectors for assignment submission
+      const assignmentLinkSelectors = [
+        `a:has-text("${courseName || courseCode || 'Assignment'}")`,
+        `a[href*="assignment" i]`,
+        `a[href*="submit" i]`,
+        'button:has-text("Submit")',
+        'a:has-text("Submit Assignment")',
+        '.assignment-submit',
+      ];
+
+      let assignmentPageFound = false;
+      for (const selector of assignmentLinkSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            await element.click();
+            await this.page.waitForTimeout(2000);
+            assignmentPageFound = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      // Find file upload input
+      const fileInputSelectors = [
+        'input[type="file"]',
+        'input[name*="file" i]',
+        'input[name*="upload" i]',
+        'input[id*="file" i]',
+        'input[id*="upload" i]',
+      ];
+
+      let fileInput = null;
+      for (const selector of fileInputSelectors) {
+        try {
+          fileInput = await this.page.$(selector);
+          if (fileInput) {
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!fileInput) {
+        return { success: false, message: 'Could not find file upload input on assignment page' };
+      }
+
+      // Upload file
+      if (filePath) {
+        await fileInput.setInputFiles(filePath);
+        await this.page.waitForTimeout(1000);
+      }
+
+      // Fill comments if provided
+      if (comments) {
+        const commentSelectors = [
+          'textarea[name*="comment" i]',
+          'textarea[name*="note" i]',
+          'textarea[id*="comment" i]',
+          'input[name*="comment" i]',
+        ];
+
+        for (const selector of commentSelectors) {
+          try {
+            const commentField = await this.page.$(selector);
+            if (commentField) {
+              await commentField.fill(comments);
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      }
+
+      // Submit form
+      const submitButtonSelectors = [
+        'button[type="submit"]:has-text("Submit")',
+        'input[type="submit"]:has-text("Submit")',
+        'button:has-text("Submit Assignment")',
+        'button:has-text("Upload")',
+        'button.submit',
+        '#submit',
+      ];
+
+      let submitted = false;
+      for (const selector of submitButtonSelectors) {
+        try {
+          const submitBtn = await this.page.$(selector);
+          if (submitBtn) {
+            await submitBtn.click();
+            await this.page.waitForTimeout(3000);
+            submitted = true;
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!submitted) {
+        // Try pressing Enter as fallback
+        await this.page.keyboard.press('Enter');
+        await this.page.waitForTimeout(2000);
+      }
+
+      // Check for success message
+      const successIndicators = [
+        '.success',
+        '.alert-success',
+        '[class*="success" i]',
+        ':has-text("submitted successfully")',
+        ':has-text("uploaded successfully")',
+      ];
+
+      let successFound = false;
+      for (const selector of successIndicators) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            const text = await element.textContent();
+            if (text && text.toLowerCase().includes('success')) {
+              successFound = true;
+              break;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return {
+        success: submitted || successFound,
+        message: successFound
+          ? 'Assignment submitted successfully'
+          : submitted
+          ? 'Submission initiated (please verify on portal)'
+          : 'Could not confirm submission status',
+        timestamp: new Date(),
+      };
     } catch (error) {
       return { success: false, message: `Error: ${error.message}` };
     }

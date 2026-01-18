@@ -66,6 +66,21 @@ export class PortalState {
     category: string;
   }>;
 
+  @Column({ type: 'jsonb', nullable: true })
+  assignments: Array<{
+    id: string;
+    title: string;
+    course: string;
+    courseCode: string;
+    description: string;
+    dueDate: Date;
+    status: 'pending' | 'submitted' | 'overdue' | 'graded';
+    submittedDate?: Date;
+    maxMarks?: number;
+    obtainedMarks?: number;
+    submissionUrl?: string;
+  }>;
+
   @CreateDateColumn()
   createdAt: Date;
 }

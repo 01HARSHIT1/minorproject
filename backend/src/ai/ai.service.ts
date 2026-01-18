@@ -86,6 +86,35 @@ export class AiService {
       }
     }
 
+    // Assignment recommendations
+    if (data.assignments && data.assignments.length > 0) {
+      const pendingAssignments = data.assignments.filter(
+        (assign) => assign.status === 'pending' || assign.status === 'overdue',
+      );
+      if (pendingAssignments.length > 0) {
+        const overdue = pendingAssignments.filter(
+          (assign) => new Date(assign.dueDate) < new Date(),
+        );
+        if (overdue.length > 0) {
+          recommendations.push(
+            `⚠️ ${overdue.length} assignment(s) are overdue. Submit immediately!`,
+          );
+        } else {
+          const dueSoon = pendingAssignments.filter(
+            (assign) => {
+              const hoursUntilDue = (new Date(assign.dueDate).getTime() - Date.now()) / (1000 * 60 * 60);
+              return hoursUntilDue > 0 && hoursUntilDue < 48;
+            },
+          );
+          if (dueSoon.length > 0) {
+            recommendations.push(
+              `📝 ${dueSoon.length} assignment(s) due within 48 hours. Complete and submit soon!`,
+            );
+          }
+        }
+      }
+    }
+
     return recommendations;
   }
 
@@ -107,6 +136,170 @@ export class AiService {
     }
 
     return { should: false, reason: 'No automatic action needed.' };
+  }
+
+  /**
+   * Review an assignment file before submission
+   */
+  async reviewAssignment(fileContent: string | Buffer, assignmentDetails: {
+    title: string;
+    course: string;
+    description?: string;
+    dueDate: Date;
+    fileType: string;
+    fileName: string;
+  }): Promise<{
+    isValid: boolean;
+    score: number; // 0-100
+    issues: Array<{
+      type: 'error' | 'warning' | 'suggestion';
+      message: string;
+      severity: 'low' | 'medium' | 'high';
+    }>;
+    suggestions: string[];
+    deadlineStatus: 'on_time' | 'warning' | 'overdue';
+    formatCheck: {
+      valid: boolean;
+      message: string;
+    };
+  }> {
+    const issues: Array<{
+      type: 'error' | 'warning' | 'suggestion';
+      message: string;
+      severity: 'low' | 'medium' | 'high';
+    }> = [];
+    const suggestions: string[] = [];
+    let score = 100;
+
+    // Check deadline
+    const now = new Date();
+    const dueDate = new Date(assignmentDetails.dueDate);
+    const timeUntilDue = dueDate.getTime() - now.getTime();
+    const hoursUntilDue = timeUntilDue / (1000 * 60 * 60);
+    
+    let deadlineStatus: 'on_time' | 'warning' | 'overdue' = 'on_time';
+    if (hoursUntilDue < 0) {
+      deadlineStatus = 'overdue';
+      issues.push({
+        type: 'error',
+        message: 'Assignment deadline has passed!',
+        severity: 'high',
+      });
+      score -= 30;
+    } else if (hoursUntilDue < 24) {
+      deadlineStatus = 'warning';
+      issues.push({
+        type: 'warning',
+        message: `Assignment due in ${Math.round(hoursUntilDue)} hours. Submit soon!`,
+        severity: 'high',
+      });
+      score -= 10;
+    } else if (hoursUntilDue < 48) {
+      deadlineStatus = 'warning';
+      issues.push({
+        type: 'warning',
+        message: `Assignment due in ${Math.round(hoursUntilDue / 24)} days.`,
+        severity: 'medium',
+      });
+    }
+
+    // Basic format check (file type validation)
+    const allowedFormats = ['pdf', 'doc', 'docx', 'txt', 'zip', 'rar'];
+    const fileExtension = assignmentDetails.fileName.split('.').pop()?.toLowerCase() || '';
+    const formatCheck = {
+      valid: allowedFormats.includes(fileExtension),
+      message: allowedFormats.includes(fileExtension)
+        ? `File format (.${fileExtension}) is acceptable`
+        : `Warning: .${fileExtension} format may not be accepted. Recommended: PDF or DOCX`,
+    };
+
+    if (!formatCheck.valid) {
+      issues.push({
+        type: 'warning',
+        message: formatCheck.message,
+        severity: 'medium',
+      });
+      score -= 15;
+    }
+
+    // File size check (if buffer provided)
+    if (Buffer.isBuffer(fileContent)) {
+      const fileSizeMB = fileContent.length / (1024 * 1024);
+      if (fileSizeMB > 10) {
+        issues.push({
+          type: 'warning',
+          message: `File size (${fileSizeMB.toFixed(2)} MB) may be too large. Check portal limits.`,
+          severity: 'medium',
+        });
+        score -= 5;
+      }
+    }
+
+    // Use AI for content review if OpenAI is available
+    if (this.openai && typeof fileContent === 'string' && fileContent.length > 0) {
+      try {
+        const contentReview = await this.openai.chat.completions.create({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an AI assistant helping students review their assignment submissions. Provide constructive feedback on grammar, formatting, and compliance with assignment requirements.',
+            },
+            {
+              role: 'user',
+              content: `Review this assignment submission:
+
+Assignment: ${assignmentDetails.title}
+Course: ${assignmentDetails.course}
+Description: ${assignmentDetails.description || 'N/A'}
+
+Content (first 2000 chars):
+${fileContent.substring(0, 2000)}
+
+Provide:
+1. Grammar/spelling issues (if any)
+2. Formatting suggestions
+3. Compliance check with assignment description
+4. Overall quality assessment`,
+            },
+          ],
+          temperature: 0.5,
+        });
+
+        const aiFeedback = contentReview.choices[0].message.content || '';
+        
+        // Parse AI feedback for suggestions
+        if (aiFeedback.toLowerCase().includes('grammar') || aiFeedback.toLowerCase().includes('spelling')) {
+          suggestions.push('Consider reviewing grammar and spelling before submission');
+          score -= 5;
+        }
+        
+        if (aiFeedback.toLowerCase().includes('format')) {
+          suggestions.push('Check formatting requirements match assignment guidelines');
+        }
+      } catch (error) {
+        this.logger.warn('AI content review failed, using basic validation only:', error);
+      }
+    }
+
+    // General suggestions
+    if (score < 70) {
+      suggestions.push('Review assignment requirements and ensure all criteria are met');
+    }
+
+    if (issues.filter((i) => i.severity === 'high').length > 0) {
+      suggestions.push('Address high-severity issues before submitting');
+    }
+
+    return {
+      isValid: score >= 60 && deadlineStatus !== 'overdue',
+      score: Math.max(0, score),
+      issues,
+      suggestions,
+      deadlineStatus,
+      formatCheck,
+    };
   }
 
   private buildAnalysisPrompt(data: PortalData): string {
