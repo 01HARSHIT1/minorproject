@@ -7,6 +7,7 @@ import { VaultService } from '../vault/vault.service';
 import { AutomationService } from '../automation/automation.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
+import { UsersService } from '../users/users.service';
 import * as crypto from 'crypto';
 
 // File type for multer uploads
@@ -35,6 +36,7 @@ export class PortalsService {
     private automationService: AutomationService,
     private notificationsService: NotificationsService,
     private aiService: AiService,
+    private usersService: UsersService,
   ) {}
 
   async createConnection(
@@ -346,7 +348,11 @@ export class PortalsService {
     previousState: PortalState | null,
   ): Promise<void> {
     // Get user for notifications
-    // In production, fetch user with notification preferences
+    const user = await this.usersService.findById(connection.userId);
+    if (!user) {
+      this.logger.warn(`User not found for connection ${connection.id}`);
+      return;
+    }
 
     // Detect assignment changes
     const previousAssignments = previousState?.assignments || [];
@@ -419,16 +425,34 @@ export class PortalsService {
 
     // Send notifications based on alerts
     if (allAlerts.length > 0) {
-      // In production, send to user's preferred channels
       this.logger.log(`[NOTIFICATION] Alerts for ${connection.collegeId}:`, allAlerts);
       
-      // Send via notification service (email, push, etc.)
-      // await this.notificationsService.sendNotification({
-      //   userId: connection.userId,
-      //   title: 'Portal Updates',
-      //   message: allAlerts.join('\n'),
-      //   type: 'portal_update',
-      // });
+      // Determine notification channels (email is always available, SMS if phone number exists)
+      const channels: Array<'push' | 'whatsapp' | 'sms' | 'email'> = ['email'];
+      if (user.phoneNumber) {
+        channels.push('sms');
+      }
+
+      try {
+        await this.notificationsService.sendNotification(
+          channels,
+          {
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+          },
+          `Portal Update: ${connection.portalType.toUpperCase()}`,
+          allAlerts.join('\n\n'),
+          {
+            type: 'portal_update',
+            connectionId: connection.id,
+            portalType: connection.portalType,
+            alertCount: allAlerts.length,
+          },
+        );
+        this.logger.log(`Notifications sent to ${user.email} for connection ${connection.id}`);
+      } catch (error) {
+        this.logger.error(`Failed to send notifications for connection ${connection.id}:`, error);
+      }
     }
   }
 
