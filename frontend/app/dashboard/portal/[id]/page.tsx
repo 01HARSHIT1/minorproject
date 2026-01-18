@@ -169,17 +169,23 @@ export default function PortalDetailPage() {
     }
   }
 
-  const handleSubmit = async (comments?: string) => {
+  const handleSubmit = async (comments?: string, confirmed: boolean = false) => {
     if (!selectedAssignment || !uploadingFile) return
     
-    if (!confirm('Are you sure you want to submit this assignment? This action cannot be undone.')) {
-      return
+    // Show confirmation dialog if not already confirmed
+    if (!confirmed) {
+      const confirmationMessage = 'Are you sure you want to submit this assignment? This action cannot be undone and will be reflected in your portal immediately.'
+      if (!confirm(confirmationMessage)) {
+        return
+      }
+      confirmed = true
     }
     
     setIsSubmitting(true)
     try {
       const formData = new FormData()
       formData.append('file', uploadingFile)
+      formData.append('confirmed', 'true') // Mark as confirmed
       if (comments) {
         formData.append('comments', comments)
       }
@@ -202,7 +208,19 @@ export default function PortalDetailPage() {
       await fetchAssignments()
       await fetchState()
     } catch (error: any) {
-      alert(`Submission failed: ${error.response?.data?.message || 'Unknown error'}`)
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error'
+      
+      // Handle confirmation requirement
+      if (errorMessage.includes('CONFIRMATION_REQUIRED')) {
+        const confirmationText = errorMessage.replace('CONFIRMATION_REQUIRED: ', '')
+        if (confirm(confirmationText + '\n\nDo you want to proceed?')) {
+          // Retry with confirmation
+          await handleSubmit(comments, true)
+          return
+        }
+      } else {
+        alert(`Submission failed: ${errorMessage}`)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -220,17 +238,30 @@ export default function PortalDetailPage() {
     }
   }
 
-  const handleAction = async (action: string, actionParams: Record<string, any> = {}) => {
+  const handleAction = async (action: string, actionParams: Record<string, any> = {}, confirmed: boolean = false) => {
     try {
       const result = await api.post(`/portals/${params.id}/action`, {
         action,
         params: actionParams,
+        confirmed,
       })
       alert(`Action completed: ${JSON.stringify(result.data)}`)
       // Refresh state after action
       await fetchState()
     } catch (error: any) {
-      alert(`Action failed: ${error.response?.data?.message || 'Unknown error'}`)
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error'
+      
+      // Handle confirmation requirement
+      if (errorMessage.includes('CONFIRMATION_REQUIRED')) {
+        const confirmationText = errorMessage.replace('CONFIRMATION_REQUIRED: ', '')
+        if (confirm(confirmationText + '\n\nDo you want to proceed?')) {
+          // Retry with confirmation
+          await handleAction(action, actionParams, true)
+          return
+        }
+      } else {
+        alert(`Action failed: ${errorMessage}`)
+      }
     }
   }
 

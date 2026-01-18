@@ -91,13 +91,20 @@ export class PortalsController {
     body: {
       action: string;
       params: Record<string, any>;
+      confirmed?: boolean;
     },
   ) {
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
     return this.portalsService.performAction(
       id,
       req.user.userId,
       body.action,
       body.params,
+      body.confirmed || false,
+      ipAddress as string,
+      userAgent,
     );
   }
 
@@ -145,15 +152,26 @@ export class PortalsController {
     @Param('id') id: string,
     @Param('assignmentId') assignmentId: string,
     @Request() req,
-    @Body() body: { comments?: string },
+    @Body() body: { comments?: string; confirmed?: boolean },
     @UploadedFile() file: MulterFile | undefined,
   ) {
+    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
     return this.portalsService.submitAssignment(
       id,
       req.user.userId,
       assignmentId,
       file,
       body.comments,
+      body.confirmed || false,
+      ipAddress as string,
+      userAgent,
     );
+  }
+
+  @Get(':id/audit-logs')
+  async getAuditLogs(@Param('id') id: string, @Request() req) {
+    return this.portalsService.getAuditLogs(id, req.user.userId);
   }
 }

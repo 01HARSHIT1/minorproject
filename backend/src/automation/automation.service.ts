@@ -47,6 +47,7 @@ export class AutomationService {
 
   /**
    * Sync portal data for a connection
+   * Uses session-based automation: logs in, maintains session, scrapes data
    */
   async syncPortal(
     portalType: PortalType,
@@ -56,11 +57,13 @@ export class AutomationService {
     const browser = await this.getBrowser();
     const context = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
+      // Store cookies and session
+      storageState: undefined, // Could be enhanced to save/restore sessions
     });
     const page = await context.newPage();
 
     try {
-      // Retrieve credentials from vault
+      // Retrieve credentials from vault (decrypted securely)
       const password = await this.vaultService.retrieveCredentials(
         credentialToken,
       );
@@ -68,29 +71,52 @@ export class AutomationService {
       // Create connector
       const connector = this.createConnector(portalType, browser, page);
 
-      // Login
+      // Step 1: Login (establishes session with cookies/tokens)
+      this.logger.log(`[${portalType}] Logging into portal for ${collegeId}...`);
       const loginSuccess = await connector.login({
         collegeId,
         password,
       });
 
       if (!loginSuccess) {
-        throw new Error('Login failed');
+        throw new Error('Login failed - invalid credentials or portal unavailable');
       }
 
-      // Scrape data
+      // Session is now established - cookies/tokens stored in browser context
+      this.logger.log(`[${portalType}] Login successful, session established`);
+
+      // Step 2: Scrape data (uses existing session)
+      this.logger.log(`[${portalType}] Scraping portal data...`);
       const data = await connector.scrapeData();
 
-      // Logout
+      // Step 3: Optionally save session cookies for reuse (future enhancement)
+      // const cookies = await context.cookies();
+      // await this.saveSession(credentialToken, cookies);
+
+      // Step 4: Logout (closes session)
       await connector.logout();
 
+      this.logger.log(`[${portalType}] Sync completed successfully`);
       return data;
     } catch (error) {
-      this.logger.error(`Sync failed for ${collegeId}:`, error);
+      this.logger.error(`[${portalType}] Sync failed for ${collegeId}:`, error);
+      
+      // Provide user-friendly error messages
+      if (error.message?.includes('Login failed')) {
+        throw new Error('Failed to login to portal. Please check your credentials and try again.');
+      }
+      if (error.message?.includes('timeout') || error.message?.includes('waiting')) {
+        throw new Error('Portal is taking too long to respond. Please try again later.');
+      }
+      if (error.message?.includes('network') || error.message?.includes('ECONNREFUSED')) {
+        throw new Error('Cannot connect to portal. Please check if the portal is accessible.');
+      }
+      
       throw error;
     } finally {
-      await page.close();
-      await context.close();
+      // Cleanup: close page and context (session ends)
+      await page.close().catch(() => {});
+      await context.close().catch(() => {});
     }
   }
 

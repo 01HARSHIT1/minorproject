@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PortalConnection, PortalType } from './entities/portal-connection.entity';
 import { PortalState } from './entities/portal-state.entity';
+import { PortalAuditLog, ActionType, ActionStatus } from './entities/portal-audit-log.entity';
 import { VaultService } from '../vault/vault.service';
 import { AutomationService } from '../automation/automation.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
+import { ActionConfirmationService } from './services/action-confirmation.service';
 import * as crypto from 'crypto';
 
 // File type for multer uploads
@@ -32,11 +34,14 @@ export class PortalsService {
     private connectionsRepository: Repository<PortalConnection>,
     @InjectRepository(PortalState)
     private statesRepository: Repository<PortalState>,
+    @InjectRepository(PortalAuditLog)
+    private auditLogRepository: Repository<PortalAuditLog>,
     private vaultService: VaultService,
     private automationService: AutomationService,
     private notificationsService: NotificationsService,
     private aiService: AiService,
     private usersService: UsersService,
+    private actionConfirmationService: ActionConfirmationService,
   ) {}
 
   async createConnection(
@@ -192,36 +197,69 @@ export class PortalsService {
     return savedState;
   }
 
+  /**
+   * Perform an action on portal with safety checks and audit logging
+   * IMPORTANT: AI never directly touches portal - only analyzes data and provides commands
+   */
   async performAction(
     id: string,
     userId: string,
     action: string,
     params: Record<string, any>,
+    confirmed: boolean = false,
+    ipAddress?: string,
+    userAgent?: string,
   ): Promise<any> {
     const connection = await this.getConnection(id, userId);
 
-    // Check with AI if action should be taken
-    const currentState = await this.statesRepository.findOne({
-      where: { connectionId: id },
-      order: { createdAt: 'DESC' },
-    });
-
-    if (currentState) {
-      const shouldAuto = await this.aiService.shouldAutoAction(action, {
-        attendance: currentState.attendance,
-        exams: currentState.exams,
-        results: currentState.results,
-        fees: currentState.fees,
-        notices: currentState.notices,
-      });
-
-      if (!shouldAuto.should && params.requireConfirmation) {
-        return { requiresConfirmation: true, reason: shouldAuto.reason };
-      }
+    // Safety Layer 1: Permission Validation
+    if (!this.actionConfirmationService.hasPermission(action, connection)) {
+      throw new Error(`Action ${action} is not allowed for this connection`);
     }
 
-    // Try to perform real action
+    // Safety Layer 2: Confirmation Check (for critical actions)
+    if (this.actionConfirmationService.requiresConfirmation(action) && !confirmed) {
+      const confirmationMessage = this.actionConfirmationService.getConfirmationMessage(action);
+      throw new Error(`CONFIRMATION_REQUIRED: ${confirmationMessage || 'This action requires confirmation'}`);
+    }
+
+    // Create audit log entry
+    const auditLog = this.auditLogRepository.create({
+      connectionId: id,
+      userId,
+      actionType: action as ActionType,
+      status: ActionStatus.PENDING,
+      description: `Performing action: ${action}`,
+      params,
+      ipAddress,
+      userAgent,
+    });
+    await this.auditLogRepository.save(auditLog);
+
     try {
+      // Safety Layer 3: AI Analysis (does NOT touch portal - only analyzes data)
+      // AI provides recommendations but never executes actions directly
+      const currentState = await this.statesRepository.findOne({
+        where: { connectionId: id },
+        order: { createdAt: 'DESC' },
+      });
+
+      if (currentState) {
+        const shouldAuto = await this.aiService.shouldAutoAction(action, {
+          attendance: currentState.attendance,
+          exams: currentState.exams,
+          results: currentState.results,
+          fees: currentState.fees,
+          notices: currentState.notices,
+          assignments: currentState.assignments,
+        });
+
+        // AI suggestion is advisory only - still requires confirmation if needed
+        this.logger.log(`[AI] Action ${action} recommendation: ${shouldAuto.should ? 'PROCEED' : 'REVIEW'} - ${shouldAuto.reason}`);
+      }
+
+      // Perform action using automation service (Playwright)
+      // This acts exactly like the student would - no extra permissions
       const result = await this.automationService.performPortalAction(
         connection.portalType,
         connection.collegeId,
@@ -229,13 +267,42 @@ export class PortalsService {
         action,
         params,
       );
-      return result;
+
+      // Update audit log with success
+      auditLog.status = ActionStatus.SUCCESS;
+      auditLog.result = result;
+      auditLog.description = `Action ${action} completed successfully`;
+      await this.auditLogRepository.save(auditLog);
+
+      this.logger.log(`[AUDIT] User ${userId} performed ${action} on connection ${id} - SUCCESS`);
+
+      return {
+        success: true,
+        message: 'Action completed successfully',
+        result,
+        timestamp: new Date(),
+      };
     } catch (error) {
-      // If automation fails, return error message
+      // Update audit log with failure
+      auditLog.status = ActionStatus.FAILED;
+      auditLog.errorMessage = error.message;
+      auditLog.description = `Action ${action} failed: ${error.message}`;
+      await this.auditLogRepository.save(auditLog);
+
+      this.logger.error(`[AUDIT] User ${userId} attempted ${action} on connection ${id} - FAILED: ${error.message}`);
+
+      // Fail-safe: Return error but don't expose sensitive details
+      // Re-throw confirmation errors as-is
+      if (error.message?.includes('CONFIRMATION_REQUIRED')) {
+        throw error;
+      }
+
       return {
         success: false,
         message: `Action failed: ${error.message}`,
         timestamp: new Date(),
+        // Portal may be temporarily unavailable
+        retryable: error.message?.includes('timeout') || error.message?.includes('network'),
       };
     }
   }
@@ -682,12 +749,21 @@ export class PortalsService {
     assignmentId: string,
     file: MulterFile | undefined,
     comments?: string,
+    confirmed: boolean = false,
+    ipAddress?: string,
+    userAgent?: string,
   ): Promise<any> {
     const connection = await this.getConnection(connectionId, userId);
     const assignment = await this.getAssignment(connectionId, userId, assignmentId);
 
     if (!file) {
       throw new Error('No file provided for submission');
+    }
+
+    // Check confirmation requirement for assignment submission
+    if (!confirmed && this.actionConfirmationService.requiresConfirmation('submit_assignment')) {
+      const confirmationMessage = this.actionConfirmationService.getConfirmationMessage('submit_assignment');
+      throw new Error(`CONFIRMATION_REQUIRED: ${confirmationMessage}`);
     }
 
     // Save file temporarily for submission
@@ -702,7 +778,8 @@ export class PortalsService {
       // Write file to temp location
       fs.writeFileSync(tempFilePath, file.buffer);
 
-      // Perform submission action on portal
+      // Perform submission action on portal (uses Playwright automation)
+      // This acts exactly like the student submitting manually
       const result = await this.performAction(
         connectionId,
         userId,
@@ -713,14 +790,19 @@ export class PortalsService {
           courseCode: assignment.courseCode,
           courseName: assignment.course,
           comments: comments || '',
+          fileName: file.originalname,
+          fileSize: file.size,
         },
+        confirmed,
+        ipAddress,
+        userAgent,
       );
 
       // Cleanup temp file
       try {
         fs.unlinkSync(tempFilePath);
       } catch (cleanupError) {
-        // Ignore cleanup errors
+        this.logger.warn(`Failed to cleanup temp file ${tempFilePath}:`, cleanupError);
       }
 
       return {
@@ -736,10 +818,29 @@ export class PortalsService {
           fs.unlinkSync(tempFilePath);
         }
       } catch (cleanupError) {
-        // Ignore cleanup errors
+        this.logger.warn(`Failed to cleanup temp file on error:`, cleanupError);
       }
-
+      
+      // Re-throw confirmation errors as-is
+      if (error.message?.includes('CONFIRMATION_REQUIRED')) {
+        throw error;
+      }
+      
       throw error;
     }
+  }
+
+  /**
+   * Get audit logs for a connection
+   */
+  async getAuditLogs(connectionId: string, userId: string): Promise<any[]> {
+    // Verify user owns this connection
+    await this.getConnection(connectionId, userId);
+
+    return this.auditLogRepository.find({
+      where: { connectionId, userId },
+      order: { createdAt: 'DESC' },
+      take: 100, // Last 100 actions
+    });
   }
 }
