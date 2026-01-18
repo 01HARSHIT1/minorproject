@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 import Link from 'next/link'
 import { GraduationCap, BookOpen, FileText, Calendar, Search } from 'lucide-react'
+import AIAssistantChat from '@/components/dashboard/AIAssistantChat'
 
 interface Course {
   id: string

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import api from '@/lib/api'
 import Link from 'next/link'
 import { FileText, Sparkles, CheckCircle2, Clock, AlertCircle, Search, Filter } from 'lucide-react'
+import AIAssistantChat from '@/components/dashboard/AIAssistantChat'
 
 interface Assignment {
   id: string
@@ -295,6 +296,17 @@ export default function AssignmentsPage() {
                 )
               })}
           </div>
+        </div>
+      )}
+
+      {/* AI Assistant Chat */}
+      {assignments.length > 0 && (
+        <div className="mt-6">
+          <AIAssistantChat
+            assignments={assignments}
+            exams={[]}
+            notices={[]}
+          />
         </div>
       )}
     </div>
