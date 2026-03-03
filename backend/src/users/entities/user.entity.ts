@@ -28,6 +28,10 @@ export class User {
   @Column({ nullable: true })
   phoneNumber: string;
 
+  /** Batch number for filtering portal content (e.g., Batch 7) */
+  @Column({ type: 'int', nullable: true })
+  batch: number | null;
+
   @Column({ default: true })
   isActive: boolean;
 

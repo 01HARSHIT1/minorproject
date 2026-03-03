@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PortalsService } from './portals.service';
 import { PortalsController } from './portals.controller';
@@ -12,6 +12,7 @@ import { AutomationModule } from '../automation/automation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
 import { UsersModule } from '../users/users.module';
+import { SupervisorModule } from '../supervisor/supervisor.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { UsersModule } from '../users/users.module';
     NotificationsModule,
     AiModule,
     UsersModule,
+    forwardRef(() => SupervisorModule),
   ],
   providers: [PortalsService, PortalsScheduler, ActionConfirmationService],
   controllers: [PortalsController],

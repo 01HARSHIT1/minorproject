@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PortalConnection, PortalType } from './entities/portal-connection.entity';
@@ -10,6 +10,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { UsersService } from '../users/users.service';
 import { ActionConfirmationService } from './services/action-confirmation.service';
+import { AgentWorkflowService } from '../supervisor/agent-workflow.service';
+import { getPortalUrl } from './portal-urls.config';
 import * as crypto from 'crypto';
 
 // File type for multer uploads
@@ -42,6 +44,8 @@ export class PortalsService {
     private aiService: AiService,
     private usersService: UsersService,
     private actionConfirmationService: ActionConfirmationService,
+    @Inject(forwardRef(() => AgentWorkflowService))
+    private agentWorkflowService: AgentWorkflowService,
   ) {}
 
   async createConnection(
@@ -51,6 +55,9 @@ export class PortalsService {
     collegeId: string,
     password: string,
   ): Promise<PortalConnection> {
+    // For UPES: always use official URL (permanent). Dynamic URLs later.
+    const resolvedUrl = getPortalUrl(portalType, portalUrl);
+
     // Generate credential token
     const credentialToken = this.vaultService.generateCredentialToken();
 
@@ -62,7 +69,7 @@ export class PortalsService {
     const connection = this.connectionsRepository.create({
       userId,
       portalType,
-      portalUrl,
+      portalUrl: resolvedUrl,
       collegeId,
       credentialToken,
     });
@@ -101,6 +108,7 @@ export class PortalsService {
 
   async syncConnection(id: string, userId: string): Promise<PortalState> {
     const connection = await this.getConnection(id, userId);
+    const user = await this.usersService.findById(userId);
 
     let data: any;
 
@@ -157,6 +165,14 @@ export class PortalsService {
           },
         ],
       };
+    }
+
+    // Filter assignments by user batch (Batch 7 etc.)
+    if (user?.batch != null && data.assignments?.length) {
+      data.assignments = data.assignments.filter((a: any) => {
+        if (a.batch == null) return true;
+        return a.batch === user.batch;
+      });
     }
 
     // Get previous state
@@ -436,9 +452,42 @@ export class PortalsService {
     // Find new assignments
     const newAssignmentIds = newAssignments.map(a => a.id);
     const previousAssignmentIds = previousAssignments.map(a => a.id);
-    const addedAssignments = newAssignments.filter(
+    let addedAssignments = newAssignments.filter(
       a => !previousAssignmentIds.includes(a.id)
     );
+
+    // Filter by user batch (Batch 7 etc.) - only process assignments for user's batch
+    if (user.batch != null) {
+      addedAssignments = addedAssignments.filter((a) => {
+        const assignmentBatch = (a as any).batch;
+        if (assignmentBatch == null) return true; // No batch info = include
+        return assignmentBatch === user.batch;
+      });
+    }
+
+    // Trigger Supervisor Agent for each new assignment (AI suggests, user approves)
+    for (const assignment of addedAssignments) {
+      try {
+        await this.agentWorkflowService.onNewAssignmentDetected({
+          connectionId: connection.id,
+          connectionType: connection.portalType,
+          userId: connection.userId,
+          userBatch: user.batch ?? null,
+          assignment: {
+            id: assignment.id,
+            title: assignment.title,
+            course: assignment.course,
+            courseCode: assignment.courseCode,
+            description: assignment.description,
+            dueDate: new Date(assignment.dueDate),
+            status: assignment.status,
+            maxMarks: assignment.maxMarks,
+          },
+        });
+      } catch (err) {
+        this.logger.error(`Supervisor trigger failed for assignment ${assignment.id}:`, err);
+      }
+    }
 
     // Find assignments with approaching deadlines
     const now = new Date();

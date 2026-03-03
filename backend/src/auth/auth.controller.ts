@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Body,
+  Patch,
   UseGuards,
   Request,
   Get,
@@ -22,6 +23,7 @@ export class AuthController {
       password: string;
       firstName: string;
       lastName: string;
+      batch?: number;
     },
   ) {
     return this.authService.register(
@@ -29,6 +31,7 @@ export class AuthController {
       body.password,
       body.firstName,
       body.lastName,
+      body.batch,
     );
   }
 
@@ -40,7 +43,16 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getProfile(@Request() req) {
-    return req.user;
+  async getProfile(@Request() req) {
+    return this.authService.getProfile(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  async updateProfile(
+    @Request() req,
+    @Body() body: { batch?: number; phoneNumber?: string; firstName?: string; lastName?: string },
+  ) {
+    return this.authService.updateProfile(req.user.userId, body);
   }
 }

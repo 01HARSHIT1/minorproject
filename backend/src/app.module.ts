@@ -11,6 +11,7 @@ import { AutomationModule } from './automation/automation.module';
 import { AiModule } from './ai/ai.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { VaultModule } from './vault/vault.module';
+import { SupervisorModule } from './supervisor/supervisor.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { VaultModule } from './vault/vault.module';
     AiModule,
     NotificationsModule,
     VaultModule,
+    SupervisorModule,
   ],
 })
 export class AppModule { }

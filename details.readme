@@ -1,0 +1,526 @@
+# Universal AI Student Gateway — Project Details & Reference
+
+> **Full documentation for the Universal AI Student Gateway project**
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [What This Does](#what-this-does)
+3. [Architecture](#architecture)
+4. [Project Structure](#project-structure)
+5. [Technology Stack](#technology-stack)
+6. [Security Features](#security-features)
+7. [Backend Details](#backend-details)
+8. [Frontend Details](#frontend-details)
+9. [Database Schema](#database-schema)
+10. [API Endpoints](#api-endpoints)
+11. [Portal Connectors](#portal-connectors)
+12. [Environment Variables](#environment-variables)
+13. [Setup & Installation](#setup--installation)
+14. [Deployment](#deployment)
+15. [Configuration Files](#configuration-files)
+16. [Contributing & Development](#contributing--development)
+17. [License](#license)
+
+---
+
+## Project Overview
+
+**Name:** Universal AI Student Gateway (Student Portal Gateway)  
+**Version:** 1.0.0  
+**Type:** Secure automation and AI layer for college portals  
+**License:** MIT  
+
+A secure automation and AI layer that sits between students and their college portals, enabling monitoring, notifications, and automated portal management. This is a linking interface for students to connect and manage their college portals.
+
+---
+
+## What This Does
+
+| Feature | Description |
+|---------|-------------|
+| **Monitor** | Automatically monitors your college portal |
+| **Notify** | Alerts when important updates occur (results, notices, fees) |
+| **Control** | Control your portal through the app (apply for exams, pay fees, etc.) |
+| **AI Insights** | AI-powered insights about your academic progress |
+| **Multi-Channel Notifications** | Push, WhatsApp, SMS, Email |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js 14)                     │
+│  - Dashboard, Portal Management, Real-time Updates           │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ HTTPS/REST API
+                       │
+┌──────────────────────▼──────────────────────────────────────┐
+│                  API Gateway (NestJS)                        │
+│  - JWT Auth, Request Validation, Rate Limiting, CORS         │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+┌───────▼──────┐ ┌─────▼──────┐ ┌────▼─────────┐
+│ Auth Service │ │ Portals   │ │ AI Service   │
+└──────────────┘ └─────┬──────┘ └──────────────┘
+                       │
+┌───────▼──────┐ ┌─────▼──────┐ ┌────▼─────────┐
+│ Vault        │ │ Automation │ │ Notifications│
+│ Service      │ │ Service    │ │ Service      │
+└──────┬───────┘ └─────┬──────┘ └──────────────┘
+       │                │
+       ▼                ▼
+Encrypted Vault    Playwright (Headless Browser)
+       │                │
+       └────────────────▼────────────────────
+                  College Portals (ERP, LMS, Exam)
+```
+
+**Data Flow:**
+- **Portal Connection:** User credentials → AES-256-GCM encrypt → Vault → Token in DB
+- **Portal Sync:** Scheduler → Decrypt → Playwright login → Scrape data → Compare state → Notify if changed
+- **Action Execution:** User request → AI analysis → Vault → Browser automation → Screenshot → Result
+
+---
+
+## Project Structure
+
+```
+minorproject-main/
+├── backend/                    # NestJS Backend API
+│   ├── src/
+│   │   ├── auth/               # JWT & Local authentication
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── auth.service.ts
+│   │   │   ├── auth.module.ts
+│   │   │   ├── jwt.strategy.ts
+│   │   │   ├── jwt-auth.guard.ts
+│   │   │   ├── local.strategy.ts
+│   │   │   └── local-auth.guard.ts
+│   │   ├── users/             # User management
+│   │   │   ├── users.service.ts
+│   │   │   ├── users.module.ts
+│   │   │   └── entities/user.entity.ts
+│   │   ├── portals/           # Portal connections & state
+│   │   │   ├── portals.controller.ts
+│   │   │   ├── portals.service.ts
+│   │   │   ├── portals.scheduler.ts
+│   │   │   ├── portals.module.ts
+│   │   │   ├── services/action-confirmation.service.ts
+│   │   │   └── entities/
+│   │   │       ├── portal-connection.entity.ts
+│   │   │       ├── portal-state.entity.ts
+│   │   │       └── portal-audit-log.entity.ts
+│   │   ├── automation/        # Browser automation (Playwright)
+│   │   │   ├── automation.service.ts
+│   │   │   ├── automation.module.ts
+│   │   │   └── connectors/
+│   │   │       ├── base-connector.ts
+│   │   │       ├── upes.connector.ts
+│   │   │       └── amity.connector.ts
+│   │   ├── vault/             # Credential encryption (AES-256-GCM)
+│   │   │   ├── vault.service.ts
+│   │   │   └── vault.module.ts
+│   │   ├── ai/                # OpenAI/Claude integration
+│   │   │   ├── ai.service.ts
+│   │   │   ├── ai.controller.ts
+│   │   │   └── ai.module.ts
+│   │   ├── notifications/     # Push, WhatsApp, SMS, Email
+│   │   │   ├── notifications.service.ts
+│   │   │   └── notifications.module.ts
+│   │   ├── app.module.ts
+│   │   └── main.ts
+│   ├── package.json
+│   ├── nest-cli.json
+│   ├── tsconfig.json
+│   ├── fly.toml
+│   ├── railway.json
+│   └── render.yaml
+├── frontend/                   # Next.js 14 Frontend
+│   ├── app/
+│   │   ├── page.tsx           # Landing/home
+│   │   ├── layout.tsx
+│   │   ├── login/page.tsx
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx       # Dashboard overview
+│   │   │   ├── layout.tsx
+│   │   │   ├── connect/page.tsx
+│   │   │   ├── portal/[id]/page.tsx
+│   │   │   ├── assignments/page.tsx
+│   │   │   ├── attendance/page.tsx
+│   │   │   ├── calendar/page.tsx
+│   │   │   ├── courses/page.tsx
+│   │   │   ├── exams/page.tsx
+│   │   │   ├── notices/page.tsx
+│   │   │   ├── timetable/page.tsx
+│   │   │   └── settings/page.tsx
+│   │   ├── error.tsx
+│   │   └── global-error.tsx
+│   ├── components/
+│   │   └── dashboard/
+│   │       ├── Sidebar.tsx
+│   │       ├── DashboardLayout.tsx
+│   │       ├── CalendarWidget.tsx
+│   │       └── AIAssistantChat.tsx
+│   ├── lib/api.ts             # Axios API client
+│   ├── store/authStore.ts      # Zustand auth state
+│   ├── middleware.ts
+│   └── package.json
+├── docker-compose.yml         # PostgreSQL + Redis
+├── package.json               # Root monorepo scripts
+├── .gitignore
+├── .vercelignore
+├── .prettierrc
+├── README.md
+├── ARCHITECTURE.md
+├── SETUP.md
+├── LICENSE
+└── [Deployment guides: Vercel, Render, Railway, Fly.io, etc.]
+```
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-------------|
+| **Frontend** | Next.js 14, React 18, Tailwind CSS, Zustand, Axios, Lucide React, date-fns |
+| **Backend** | NestJS 10, TypeScript 5, Passport (JWT + Local), class-validator, class-transformer |
+| **Database** | PostgreSQL 15, TypeORM |
+| **Cache/Queue** | Redis 7, BullMQ (Bull) |
+| **Automation** | Playwright 1.40 |
+| **AI** | OpenAI GPT-4 |
+| **Notifications** | Firebase, Twilio, Nodemailer |
+| **Encryption** | Node.js crypto (AES-256-GCM) |
+
+---
+
+## Security Features
+
+- **AES-256-GCM** encryption for credentials
+- **Zero plaintext logging** of credentials
+- **Tokenized references** (credential_token) in database
+- **Secure vault** (in-memory dev; AWS Secrets Manager compatible for prod)
+- **Never expose credentials** to frontend or AI
+- **JWT-based** authentication
+- **User data isolation** (user_id checks on all operations)
+- **bcrypt** password hashing
+
+---
+
+## Backend Details
+
+### NestJS Modules
+- `AuthModule` — Register, login, JWT
+- `UsersModule` — User CRUD
+- `PortalsModule` — Connections, sync, actions, assignments, audit logs
+- `AutomationModule` — Playwright connectors
+- `AiModule` — OpenAI insights
+- `NotificationsModule` — Push, WhatsApp, SMS, Email
+- `VaultModule` — Credential encryption
+
+### Main Configuration
+- **Port:** 3001 (or `PORT` env)
+- **CORS:** Configurable `FRONTEND_URL`; allows localhost, Vercel preview URLs
+- **Validation:** Global ValidationPipe (whitelist, forbidNonWhitelisted, transform)
+- **Database:** TypeORM with `synchronize: true` (dev)
+
+---
+
+## Frontend Details
+
+### Pages
+- `/` — Landing
+- `/login` — Login / Register
+- `/dashboard` — Overview (portals, deadlines, notices, AI chat)
+- `/dashboard/connect` — Connect new portal
+- `/dashboard/portal/[id]` — Portal detail
+- `/dashboard/assignments` — Assignments list
+- `/dashboard/attendance` — Attendance
+- `/dashboard/calendar` — Calendar
+- `/dashboard/courses` — Courses
+- `/dashboard/exams` — Exams
+- `/dashboard/notices` — Notices
+- `/dashboard/timetable` — Timetable
+- `/dashboard/settings` — Settings
+
+### State Management
+- **Zustand** in `store/authStore.ts` — Token, user, hydration
+
+### API Client
+- **Axios** in `lib/api.ts` — `NEXT_PUBLIC_API_URL`, Bearer token, 401 → `/login`
+
+---
+
+## Database Schema
+
+### Users
+| Column | Type |
+|--------|------|
+| id | uuid (PK) |
+| email | string (unique) |
+| passwordHash | string |
+| firstName | string |
+| lastName | string |
+| phoneNumber | string (nullable) |
+| isActive | boolean |
+| createdAt | timestamp |
+| updatedAt | timestamp |
+
+### Portal Connections
+| Column | Type |
+|--------|------|
+| id | uuid (PK) |
+| user_id | uuid (FK) |
+| portalType | enum (amity, upes, du, vit, iit, custom) |
+| portalUrl | string |
+| collegeId | string |
+| credential_token | string |
+| isActive | boolean |
+| autoSync | boolean |
+| syncIntervalMinutes | int (default 15) |
+| createdAt | timestamp |
+| updatedAt | timestamp |
+
+### Portal States, Portal Audit Logs
+See `backend/src/portals/entities/` for full definitions.
+
+---
+
+## API Endpoints
+
+### Auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Register (email, password, firstName, lastName) |
+| POST | `/auth/login` | Login |
+| GET | `/auth/me` | Get profile (JWT required) |
+
+### Portals (all require JWT)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/portals/connect` | Create connection |
+| GET | `/portals` | List user connections |
+| GET | `/portals/summary` | Dashboard summary |
+| GET | `/portals/:id` | Get connection |
+| POST | `/portals/:id/sync` | Trigger sync |
+| GET | `/portals/:id/state` | Latest state |
+| GET | `/portals/:id/insights` | AI insights |
+| POST | `/portals/:id/action` | Perform action |
+| DELETE | `/portals/:id` | Soft delete (set isActive=false) |
+| GET | `/portals/:id/assignments` | List assignments |
+| GET | `/portals/:id/assignments/:assignmentId` | Get assignment |
+| POST | `/portals/:id/assignments/:assignmentId/review` | Review assignment (file upload) |
+| POST | `/portals/:id/assignments/:assignmentId/submit` | Submit assignment (file upload) |
+| GET | `/portals/:id/audit-logs` | Audit logs |
+
+---
+
+## Portal Connectors
+
+**UPES (permanent for now):** Official MyUPES URL is hardcoded in `backend/src/portals/portal-urls.config.ts`. Dynamic user-provided URLs planned for later.
+
+### Supported Portals (PortalType enum)
+- `AMITY` — Amity University
+- `UPES` — UPES (myupes-beta.upes.ac.in)
+- `DU` — Delhi University
+- `VIT` — VIT
+- `IIT` — IIT
+- `CUSTOM` — Custom portal
+
+### Base Connector Interface
+```typescript
+abstract login(credentials: PortalCredentials): Promise<boolean>;
+abstract scrapeData(): Promise<PortalData>;
+abstract performAction(action: string, params: Record<string, any>): Promise<any>;
+```
+
+### PortalData Structure
+- attendance, exams, results, fees, notices, assignments
+
+### Adding a New Connector
+1. Create file in `backend/src/automation/connectors/`
+2. Extend `BaseConnector`
+3. Implement `login`, `scrapeData`, `performAction`
+4. Add type to `PortalType` enum
+5. Register in `AutomationService`
+
+---
+
+## Environment Variables
+
+### Backend (.env)
+| Variable | Description |
+|----------|-------------|
+| DATABASE_HOST | PostgreSQL host |
+| DATABASE_PORT | 5432 |
+| DATABASE_USER | PostgreSQL user |
+| DATABASE_PASSWORD | PostgreSQL password |
+| DATABASE_NAME | student_gateway |
+| REDIS_HOST | localhost |
+| REDIS_PORT | 6379 |
+| JWT_SECRET | JWT signing secret |
+| JWT_EXPIRES_IN | 7d |
+| ENCRYPTION_KEY | **32 characters** for AES-256-GCM |
+| PORT | 3001 |
+| FRONTEND_URL | CORS allowed origin(s) |
+| OPENAI_API_KEY | Optional (AI features) |
+| FIREBASE_* | Optional (push) |
+| TWILIO_* | Optional (WhatsApp/SMS) |
+| SMTP_* | Optional (email) |
+
+### Frontend (.env.local)
+| Variable | Description |
+|----------|-------------|
+| NEXT_PUBLIC_API_URL | Backend API URL (e.g. http://localhost:3001) |
+
+---
+
+## Setup & Installation
+
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+- Redis 6+
+
+### Steps
+1. **Install dependencies:**
+   ```bash
+   npm run install:all
+   ```
+
+2. **Database & Redis (Docker):**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Environment:**
+   - Copy `backend/.env.example` → `backend/.env`
+   - Create `frontend/.env.local` with `NEXT_PUBLIC_API_URL=http://localhost:3001`
+
+4. **Playwright:**
+   ```bash
+   cd backend && npx playwright install chromium
+   ```
+
+5. **Run:**
+   ```bash
+   npm run dev          # Both backend + frontend
+   npm run dev:backend  # Backend only (port 3001)
+   npm run dev:frontend # Frontend only (port 3000)
+   ```
+
+---
+
+## Deployment
+
+### Frontend (Vercel)
+- Set **Root Directory** to `frontend` in Vercel Dashboard
+- Set `NEXT_PUBLIC_API_URL` to backend API URL
+
+### Backend Options
+- **Render** — render.yaml, free tier
+- **Railway** — railway.json
+- **Fly.io** — fly.toml
+
+### Docker
+- `docker-compose.yml` provides PostgreSQL 15 and Redis 7
+
+---
+
+## Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `package.json` | Root workspace; scripts for dev, build, install |
+| `backend/package.json` | NestJS dependencies |
+| `frontend/package.json` | Next.js dependencies |
+| `docker-compose.yml` | PostgreSQL + Redis |
+| `.gitignore` | Ignores node_modules, env, logs, etc. |
+| `.vercelignore` | Excludes backend, docs from Vercel |
+| `.prettierrc` | Prettier config |
+
+---
+
+## Contributing & Development
+
+- Add new connectors under `backend/src/automation/connectors/`
+- Use `BaseConnector` for new portal types
+- See `ARCHITECTURE.md` and `SETUP.md` for architecture and setup
+
+---
+
+## License
+
+MIT License — See `LICENSE` file.
+
+---
+
+## Related Documentation
+
+| File | Content |
+|------|---------|
+| README.md | Quick start |
+| ARCHITECTURE.md | System architecture |
+| SETUP.md | Detailed setup |
+| VERCEL_*.md | Vercel deployment |
+| RENDER_*.md | Render deployment |
+| RAILWAY_*.md | Railway deployment |
+| MONGODB_SETUP_GUIDE.md | MongoDB setup |
+| DATABASE_OPTIONS.md | Database options |
+
+---
+
+## AI Academic Supervisor Agent (NEW)
+
+A secure AI layer that watches the portal, suggests solutions, and **always asks before acting**.
+
+### Flow
+
+1. **Portal Monitoring** — Scheduler syncs portals via Playwright.
+2. **New Assignment Detected** — Supervisor Agent is triggered.
+3. **AI Analysis** — Summarizes assignment, suggests approach, estimates effort.
+4. **User Notification** — Email: "Want AI help drafting?"
+5. **Permission Workflow** — User reviews in **AI Approvals** queue.
+6. **Approve / Reject** — Only if user approves → automation uploads (with user's file).
+
+### Batch Filtering
+
+- User `batch` field (e.g., 7 for Batch 7) filters assignments.
+- Connectors can add optional `batch` to assignments.
+- Only assignments matching user's batch are processed.
+
+### Supervisor Module
+
+| File | Purpose |
+|------|---------|
+| `supervisor.service.ts` | Get/approve/reject actions, execute approved uploads |
+| `supervisor.controller.ts` | REST API for supervisor |
+| `agent-workflow.service.ts` | On new assignment → AI analysis → create pending action → notify |
+| `entities/supervisor-action.entity.ts` | Approval workflow table |
+
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/supervisor/actions/pending` | Approval queue |
+| GET | `/supervisor/actions` | All actions (?status=) |
+| GET | `/supervisor/actions/:id` | Single action |
+| POST | `/supervisor/actions/:id/approve` | Approve (optional file) |
+| POST | `/supervisor/actions/:id/reject` | Reject |
+| POST | `/supervisor/suggest` | Create AI draft suggestion manually |
+
+### Security Rules
+
+- AI **never** accesses credentials.
+- AI **never** auto-uploads.
+- AI suggests → User approves → Automation executes.
+
+---
+
+*Generated from project analysis. Last updated: March 2025.*

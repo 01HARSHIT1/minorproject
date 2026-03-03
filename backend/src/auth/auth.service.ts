@@ -23,12 +23,7 @@ export class AuthService {
     const payload = { email: user.email, sub: user.id };
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
+      user, // validateUser already strips passwordHash
     };
   }
 
@@ -37,6 +32,7 @@ export class AuthService {
     password: string,
     firstName: string,
     lastName: string,
+    batch?: number,
   ) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await this.usersService.create({
@@ -44,8 +40,25 @@ export class AuthService {
       passwordHash: hashedPassword,
       firstName,
       lastName,
+      ...(batch != null && { batch }),
     });
 
     return this.login(user);
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const { passwordHash, ...profile } = user;
+    return profile;
+  }
+
+  async updateProfile(userId: string, updates: { batch?: number; phoneNumber?: string; firstName?: string; lastName?: string }) {
+    const user = await this.usersService.update(userId, updates);
+    if (!user) return null;
+    const { passwordHash, ...profile } = user;
+    return profile;
   }
 }

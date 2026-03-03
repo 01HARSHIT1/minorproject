@@ -1,11 +1,15 @@
 'use client'
 
 import { Settings as SettingsIcon, Bell, Shield, User, Save } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
+import api from '@/lib/api'
 
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
+  const [batch, setBatch] = useState<number | null>(user?.batch ?? null)
+  const [saving, setSaving] = useState(false)
   const [notifications, setNotifications] = useState({
     email: true,
     sms: true,
@@ -16,6 +20,23 @@ export default function SettingsPage() {
   })
 
   const [autoSync, setAutoSync] = useState(true)
+
+  useEffect(() => {
+    setBatch(user?.batch ?? null)
+  }, [user?.batch])
+
+  const handleSaveProfile = async () => {
+    setSaving(true)
+    try {
+      const { data } = await api.patch('/auth/me', { batch: batch ?? undefined })
+      setUser(data)
+    } catch (err) {
+      console.error('Failed to save:', err)
+      alert('Failed to save profile')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div>
@@ -51,6 +72,21 @@ export default function SettingsPage() {
               readOnly
               className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Batch</label>
+            <input
+              type="number"
+              min="1"
+              value={batch}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                setBatch(e.target.value === '' ? null : isNaN(v) ? null : v)
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. 7 for Batch 7"
+            />
+            <p className="text-xs text-gray-500 mt-1">Filter portal content by your batch (optional)</p>
           </div>
         </div>
       </div>
@@ -161,9 +197,13 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="mt-6 flex justify-end">
-        <button className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition">
+        <button
+          onClick={handleSaveProfile}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition disabled:opacity-50"
+        >
           <Save className="w-5 h-5" />
-          Save Changes
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>

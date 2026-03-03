@@ -83,6 +83,7 @@ export class PortalState {
     maxMarks?: number;
     obtainedMarks?: number;
     submissionUrl?: string;
+    batch?: number;
   }>;
 
   @CreateDateColumn()

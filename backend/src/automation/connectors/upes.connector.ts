@@ -1,27 +1,31 @@
 import { BaseConnector, PortalCredentials, PortalData } from './base-connector';
+import { UPES_OFFICIAL_URLS } from '../../portals/portal-urls.config';
 
+/** UPES MyUPES Portal - Official student portal (permanent URL) */
 export class UpesConnector extends BaseConnector {
-  private readonly loginUrl = 'https://myupes-beta.upes.ac.in/';
+  private readonly loginUrl = UPES_OFFICIAL_URLS.login;
+  private readonly dashboardUrl = UPES_OFFICIAL_URLS.dashboard;
 
   async login(credentials: PortalCredentials): Promise<boolean> {
     try {
-      await this.page.goto(this.loginUrl, { waitUntil: 'networkidle' });
+      await this.page.goto(this.loginUrl, { waitUntil: 'networkidle', timeout: 30000 });
       
       // Wait for page to load - try multiple common selectors
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(3000);
       
-      // Common login field selectors for UPES portal
+      // UPES MyUPES login - supports email (Harshit.122504@stu.upes.ac.in) or college ID
       const usernameSelectors = [
+        'input[name="email"]',
         'input[name="username"]',
         'input[name="userid"]',
-        'input[name="email"]',
+        'input[id="email"]',
         'input[id="username"]',
         'input[id="userid"]',
-        'input[id="email"]',
+        'input[type="email"]',
         'input[type="text"]',
+        'input[placeholder*="email" i]',
         'input[placeholder*="username" i]',
         'input[placeholder*="user id" i]',
-        'input[placeholder*="email" i]',
       ];
 
       const passwordSelectors = [
@@ -101,10 +105,24 @@ export class UpesConnector extends BaseConnector {
         await this.page.keyboard.press('Enter');
       }
 
-      // Wait for navigation or dashboard to appear
-      await this.page.waitForTimeout(3000);
+      // Wait for navigation
+      await this.page.waitForTimeout(4000);
       
-      // Check if login was successful by looking for common dashboard elements
+      const currentUrl = this.page.url();
+      
+      // Success: redirected to connectportal dashboard
+      if (currentUrl.includes('connectportal') || currentUrl.includes('dashboard')) {
+        return true;
+      }
+      
+      // Navigate to dashboard if we're logged in but on a different page
+      if (!currentUrl.includes('login') && currentUrl.includes('myupes-beta.upes.ac.in')) {
+        await this.page.goto(this.dashboardUrl, { waitUntil: 'networkidle', timeout: 15000 });
+        await this.page.waitForTimeout(2000);
+        return true;
+      }
+      
+      // Check for common dashboard elements
       const dashboardIndicators = [
         '.dashboard',
         '.student-dashboard',
@@ -119,16 +137,15 @@ export class UpesConnector extends BaseConnector {
 
       for (const indicator of dashboardIndicators) {
         try {
-          await this.page.waitForSelector(indicator, { timeout: 5000 });
+          await this.page.waitForSelector(indicator, { timeout: 3000 });
           return true;
         } catch (e) {
           continue;
         }
       }
 
-      // If URL changed, assume login successful
-      const currentUrl = this.page.url();
-      if (currentUrl !== this.loginUrl && !currentUrl.includes('login')) {
+      // If URL changed away from login, assume success
+      if (currentUrl !== this.loginUrl && !currentUrl.includes('auth/login')) {
         return true;
       }
 
@@ -167,6 +184,13 @@ export class UpesConnector extends BaseConnector {
     const data: PortalData = {};
 
     try {
+      // Ensure we're on the Connect Portal dashboard for scraping
+      const currentUrl = this.page.url();
+      if (!currentUrl.includes('connectportal') && !currentUrl.includes('dashboard')) {
+        await this.page.goto(this.dashboardUrl, { waitUntil: 'networkidle', timeout: 15000 });
+        await this.page.waitForTimeout(3000);
+      }
+
       // Wait for page to be fully loaded
       await this.page.waitForTimeout(2000);
 
@@ -687,10 +711,21 @@ export class UpesConnector extends BaseConnector {
     try {
       const { assignmentId, filePath, courseCode, courseName, comments } = params;
 
-      // Navigate to LMS if not already there
+      // Ensure we're on Connect Portal dashboard
+      const currentUrl = this.page.url();
+      if (!currentUrl.includes('connectportal')) {
+        await this.page.goto(this.dashboardUrl, { waitUntil: 'networkidle', timeout: 15000 });
+        await this.page.waitForTimeout(3000);
+      }
+
+      // Navigate to LMS / Assignments - UPES Connect Portal
       const lmsLinkSelectors = [
         'a:has-text("LMS")',
+        'a:has-text("Assignments")',
+        'a:has-text("Learning")',
         'a[href*="lms" i]',
+        'a[href*="assignment" i]',
+        'a[href*="connectportal" i]',
         '.lms-link',
         '[href*="lms.upes.ac.in"]',
       ];

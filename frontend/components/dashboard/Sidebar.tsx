@@ -11,7 +11,8 @@ import {
   BookOpen, 
   Bell,
   Settings,
-  LogOut
+  LogOut,
+  CheckSquare
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
@@ -23,6 +24,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'AI Approvals', href: '/dashboard/approvals', icon: CheckSquare },
   { name: 'Assignments', href: '/dashboard/assignments', icon: FileText },
   { name: 'Courses', href: '/dashboard/courses', icon: GraduationCap },
   { name: 'Timetable', href: '/dashboard/timetable', icon: Calendar },

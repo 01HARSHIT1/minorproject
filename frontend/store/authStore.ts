@@ -5,6 +5,7 @@ interface User {
   email: string
   firstName: string
   lastName: string
+  batch?: number | null
 }
 
 interface AuthState {
@@ -13,6 +14,7 @@ interface AuthState {
   isAuthenticated: boolean
   _hasHydrated: boolean
   setAuth: (user: User, token: string) => void
+  setUser: (user: Partial<User>) => void
   logout: () => void
   setHasHydrated: (state: boolean) => void
   hydrate: () => void
@@ -39,7 +41,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
   },
-  
+
+  setUser: (updates) => {
+    const current = get().user
+    if (!current) return
+    const user = { ...current, ...updates }
+    set({ user })
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(localStorage.getItem('auth-storage') || '{}')
+        if (stored.token) {
+          localStorage.setItem('auth-storage', JSON.stringify({ user, token: stored.token }))
+        }
+      } catch {}
+    }
+  },
+
   logout: () => {
     set({ user: null, token: null, isAuthenticated: false })
     // Clear localStorage only on client

@@ -48,6 +48,8 @@ export interface PortalData {
     maxMarks?: number;
     obtainedMarks?: number;
     submissionUrl?: string;
+    /** Batch number for filtering (e.g., Batch 7). Connectors populate when portal exposes it. */
+    batch?: number;
   }>;
 }
 

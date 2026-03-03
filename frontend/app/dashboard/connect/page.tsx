@@ -6,13 +6,16 @@ import api from '@/lib/api'
 import { ArrowLeft, Link2, Lock, User, Globe, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
+// Official UPES portal - permanent for now. TODO: Dynamic portal URLs later.
+const UPES_OFFICIAL_URL = 'https://myupes-beta.upes.ac.in/oneportal/app/auth/login'
+
 const PORTAL_TYPES = [
-  { value: 'upes', label: 'UPES (University of Petroleum and Energy Studies)', url: 'https://myupes-beta.upes.ac.in/' },
-  { value: 'amity', label: 'Amity University', url: '' },
-  { value: 'du', label: 'Delhi University', url: '' },
-  { value: 'vit', label: 'VIT University', url: '' },
-  { value: 'iit', label: 'IIT', url: '' },
-  { value: 'custom', label: 'Custom Portal', url: '' },
+  { value: 'upes', label: 'UPES (University of Petroleum and Energy Studies)', url: UPES_OFFICIAL_URL, fixedUrl: true },
+  { value: 'amity', label: 'Amity University', url: '', fixedUrl: false },
+  { value: 'du', label: 'Delhi University', url: '', fixedUrl: false },
+  { value: 'vit', label: 'VIT University', url: '', fixedUrl: false },
+  { value: 'iit', label: 'IIT', url: '', fixedUrl: false },
+  { value: 'custom', label: 'Custom Portal', url: '', fixedUrl: false },
 ]
 
 export default function ConnectPortalPage() {
@@ -21,7 +24,7 @@ export default function ConnectPortalPage() {
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
     portalType: 'upes',
-    portalUrl: 'https://myupes-beta.upes.ac.in/',
+    portalUrl: 'https://myupes-beta.upes.ac.in/oneportal/app/auth/login',
     collegeId: '',
     password: '',
   })
@@ -31,8 +34,14 @@ export default function ConnectPortalPage() {
     setLoading(true)
     setError('')
 
+    // UPES: always use official URL (permanent for now)
+    const payload = {
+      ...formData,
+      ...(formData.portalType === 'upes' && { portalUrl: UPES_OFFICIAL_URL }),
+    }
+
     try {
-      await api.post('/portals/connect', formData)
+      await api.post('/portals/connect', payload)
       router.push('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to connect portal')
@@ -78,7 +87,7 @@ export default function ConnectPortalPage() {
                     setFormData({ 
                       ...formData, 
                       portalType: e.target.value,
-                      portalUrl: selectedType?.url || formData.portalUrl
+                      portalUrl: selectedType?.url ?? formData.portalUrl,
                     });
                   }}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition appearance-none bg-white"
@@ -92,28 +101,37 @@ export default function ConnectPortalPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold mb-2 text-gray-700">
-                Portal URL
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="url"
-                  required
-                  value={formData.portalUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, portalUrl: e.target.value })
-                  }
-                  placeholder="https://student.example.edu"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
-                />
+            {/* Portal URL - hidden for UPES (fixed). Shown for others (dynamic later) */}
+            {formData.portalType !== 'upes' ? (
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Portal URL
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="url"
+                    required={formData.portalType !== 'upes'}
+                    value={formData.portalUrl}
+                    onChange={(e) =>
+                      setFormData({ ...formData, portalUrl: e.target.value })
+                    }
+                    placeholder="https://student.example.edu"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-600">
+                  <strong>UPES Portal:</strong> Using official MyUPES link. Access your student portal through this AI gateway.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold mb-2 text-gray-700">
-                College ID / Username
+                College ID / Email (e.g. Harshit.122504@stu.upes.ac.in)
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />

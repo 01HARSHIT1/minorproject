@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/authStore'
 import Sidebar from './Sidebar'
-import { Bell, User, Search } from 'lucide-react'
+import api from '@/lib/api'
+import { Bell, Search } from 'lucide-react'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -13,6 +14,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
+  const setUser = useAuthStore((state) => state.setUser)
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const hasHydrated = useAuthStore((state) => state._hasHydrated)
 
@@ -25,7 +27,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     
     if (!isAuthenticated) {
       router.push('/login')
+      return
     }
+    // Refresh profile (batch, etc.) when dashboard loads
+    api.get('/auth/me').then(({ data }) => setUser(data)).catch(() => {})
+  }, [hasHydrated, isAuthenticated, router, setUser])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !hasHydrated) return
+    if (!isAuthenticated) router.push('/login')
   }, [isAuthenticated, router, hasHydrated])
 
   if (!hasHydrated || !isAuthenticated) {

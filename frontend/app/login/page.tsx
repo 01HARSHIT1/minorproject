@@ -22,6 +22,7 @@ export default function LoginPage() {
     password: '',
     firstName: '',
     lastName: '',
+    batch: '' as string,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +39,10 @@ export default function LoginPage() {
         setAuth(data.user, data.access_token)
         router.push('/dashboard')
       } else {
-        const { data } = await api.post('/auth/register', formData)
+        const { data } = await api.post('/auth/register', {
+          ...formData,
+          batch: formData.batch ? parseInt(formData.batch, 10) : undefined,
+        })
         setAuth(data.user, data.access_token)
         router.push('/dashboard')
       }
@@ -132,6 +136,22 @@ export default function LoginPage() {
                     />
                   </div>
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
+                  Batch (optional)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.batch}
+                  onChange={(e) =>
+                    setFormData({ ...formData, batch: e.target.value })
+                  }
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
+                  placeholder="e.g. 7 for Batch 7"
+                />
+                <p className="text-xs text-gray-500 mt-1">Filter assignments by your batch</p>
               </div>
             </>
           )}
